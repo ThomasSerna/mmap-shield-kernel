@@ -113,22 +113,18 @@ int shield_del_protected_path(const char *path)
     return -ENOENT;
 }
 
-void shield_list_protected_paths(char *buf, size_t buf_len)
+void shield_list_protected_paths_seq(struct seq_file *m)
 {
     unsigned long flags;
-    size_t i, offset = 0;
+    size_t i;
 
-    if (!buf || buf_len == 0)
+    if (!m)
         return;
 
-    buf[0] = '\0';
     spin_lock_irqsave(&g_paths_lock, flags);
     for (i = 0; i < MAX_PROTECTED_PATHS; i++) {
         if (g_protected_paths[i].active) {
-            int written = scnprintf(buf + offset, buf_len - offset, "  - %s\n",
-                                   g_protected_paths[i].path);
-            if (written > 0)
-                offset += (size_t)written;
+            seq_printf(m, "  - %s\n", g_protected_paths[i].path);
         }
     }
     spin_unlock_irqrestore(&g_paths_lock, flags);

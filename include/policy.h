@@ -3,6 +3,7 @@
 
 #include <linux/fs.h>
 #include <linux/ptrace.h>
+#include <linux/seq_file.h>
 #include "mmap_shield.h"
 
 #define MAX_PROTECTED_PATHS 16
@@ -20,7 +21,7 @@ shield_action_t shield_evaluate_syscall_mmap(const struct pt_regs *regs);
 /* Protected path management */
 int  shield_add_protected_path(const char *path);
 int  shield_del_protected_path(const char *path);
-void shield_list_protected_paths(char *buf, size_t buf_len);
+void shield_list_protected_paths_seq(struct seq_file *m);
 
 /* Policy lifecycle */
 int  shield_policy_init(void);

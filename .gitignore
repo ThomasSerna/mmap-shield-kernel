@@ -1,0 +1,27 @@
+# Linux Kernel Module build artifacts
+*.o
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.o.ur-safe
+*.cmd
+.*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Module.markers
+modules.builtin
+modules.builtin.modinfo
+.cache.mk
+
+# Compiled binaries and tests
+tests/test_runner
+tests/*.bin
+tests/*.log
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*~

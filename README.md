@@ -1,7 +1,10 @@
-# mmap-shield-kernel 🛡️
-> **Módulo de Seguridad en la Capa del Kernel para Intercepción y Protección de Mapeos de Memoria (`mmap` / `file_mmap`)**  
-> *Universidad EAFIT — Departamento de Informática y Analítica*  
-> *Asignatura: Sistemas Operativos (Periodo 2026-2)*
+# mmap-shield-kernel
+
+
+## Integrantes
+- Juan Esteban Palacio
+- Mateo Montoya
+- Thomas Serna
 
 ---
 
@@ -210,8 +213,3 @@ El archivo `tests/test_runner.c` implementa pruebas reproducibles para cada vect
 | **Test 3** | Escritura sobre archivo sensible registrado en la política | Bloqueado con `-EACCES` | **PASÓ (BLOQUEADO)** |
 | **Test 4** | Precursor Dirty COW (`O_RDONLY` + `MAP_PRIVATE \| PROT_WRITE`) | Bloqueado preventivamente antes de VMA | **PASÓ (BLOQUEADO)** |
 | **Test 5** | Descriptor en solo lectura con `MAP_SHARED \| PROT_WRITE` | Rechazado con `-EACCES` | **PASÓ (RECHAZADO)** |
-
----
-
-## 8. Licencia
-Este proyecto está publicado bajo la licencia **GPL-2.0-only**, de conformidad con los estándares de desarrollo del núcleo de Linux.

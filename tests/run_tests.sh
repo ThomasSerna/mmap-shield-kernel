@@ -71,8 +71,19 @@ if [ "$HAS_SUDO" -eq 1 ]; then
     echo "add_path=/tmp/shield_protected.txt" | $SUDO tee "$PROC_FILE" >/dev/null
 
     # Ejecutar suite de pruebas
+    # La politica de archivos sensibles solo aplica a procesos no root, por lo que
+    # test_runner debe correr como el usuario sin privilegios que invoco sudo.
     echo -e "\n${BOLD}[5/5] Ejecutando suite de pruebas de seguridad con proteccion activa...${RESET}"
-    "$BIN" || true
+    $SUDO rm -f /tmp/shield_protected.txt /tmp/shield_benign.txt
+    if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        echo -e "${CYAN}[*] Ejecutando test_runner como usuario sin privilegios: $SUDO_USER${RESET}"
+        sudo -u "$SUDO_USER" "$BIN" || true
+    else
+        if [ "$(id -u)" -eq 0 ]; then
+            echo -e "${YELLOW}[!] test_runner se ejecuta como root: el TEST 3 (archivo sensible) no sera bloqueado.${RESET}"
+        fi
+        "$BIN" || true
+    fi
 
     # Mostrar métricas en tiempo real
     echo -e "\n${CYAN}======================================================================${RESET}"

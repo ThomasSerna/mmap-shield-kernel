@@ -18,9 +18,6 @@
 typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
 static kallsyms_lookup_name_t g_kallsyms_lookup_name = NULL;
 
-/* Per-CPU recursion guard to prevent deadlock when calling original function */
-static DEFINE_PER_CPU(int, g_hook_reentrancy);
-
 /* Forward declarations of hook thunks and handlers */
 static struct ftrace_hook g_hook_sec_mmap;
 static struct ftrace_hook g_hook_sys_mmap;
@@ -73,18 +70,25 @@ unsigned long shield_resolve_symbol(const char *name)
 /*
  * Ftrace callback thunk.
  * Handles the redirection of execution flow to our hook function.
+ *
+ * Recursion guard: when our hook calls the original function, the ftrace
+ * trampoline fires again. In that case the caller (parent_ip) lies inside
+ * this module, so we let the original run untouched. Calls coming from
+ * anywhere else in the kernel (including nested calls such as
+ * __x64_sys_mmap -> vm_mmap_pgoff -> security_mmap_file) are still
+ * redirected, and no per-CPU state is held across code that may sleep.
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
 static void notrace fh_ftrace_thunk(unsigned long ip, unsigned long parent_ip,
                                     struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
     struct ftrace_hook *hook = container_of(ops, struct ftrace_hook, ops);
+    struct pt_regs *regs = ftrace_get_regs(fregs);
 
-    /* If this CPU is already executing inside our hook, let it pass to original */
-    if (this_cpu_read(g_hook_reentrancy))
+    if (!regs || within_module(parent_ip, THIS_MODULE))
         return;
 
-    ftrace_regs_set_instruction_pointer(fregs, (unsigned long)hook->function);
+    regs->ip = (unsigned long)hook->function;
 }
 #else
 static void notrace fh_ftrace_thunk(unsigned long ip, unsigned long parent_ip,
@@ -92,7 +96,7 @@ static void notrace fh_ftrace_thunk(unsigned long ip, unsigned long parent_ip,
 {
     struct ftrace_hook *hook = container_of(ops, struct ftrace_hook, ops);
 
-    if (this_cpu_read(g_hook_reentrancy))
+    if (within_module(parent_ip, THIS_MODULE))
         return;
 
     regs->ip = (unsigned long)hook->function;
@@ -100,15 +104,14 @@ static void notrace fh_ftrace_thunk(unsigned long ip, unsigned long parent_ip,
 #endif
 
 /*
- * Hook implementation for security_mmap_file (LSM hook file_mmap)
- * In Linux >= 6.8, reqprot was removed from the parameter list.
+ * Hook implementation for security_mmap_file.
+ * The exported wrapper has kept the signature (file, prot, flags) across
+ * 5.x / 6.x; "reqprot" only exists in the internal LSM mmap_file hook.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-static asmlinkage int hook_security_mmap_file(struct file *file,
-                                              unsigned long prot,
-                                              unsigned long flags)
+static int hook_security_mmap_file(struct file *file,
+                                   unsigned long prot,
+                                   unsigned long flags)
 {
-    int ret;
     shield_action_t action;
 
     /* Evaluate security policy */
@@ -118,34 +121,9 @@ static asmlinkage int hook_security_mmap_file(struct file *file,
         return -EACCES;
     }
 
-    /* Call the original security_mmap_file with reentrancy protection */
-    this_cpu_write(g_hook_reentrancy, 1);
-    ret = ((int (*)(struct file *, unsigned long, unsigned long))g_hook_sec_mmap.address)(file, prot, flags);
-    this_cpu_write(g_hook_reentrancy, 0);
-
-    return ret;
+    /* Call the original security_mmap_file (thunk skips calls from this module) */
+    return ((int (*)(struct file *, unsigned long, unsigned long))g_hook_sec_mmap.address)(file, prot, flags);
 }
-#else
-static asmlinkage int hook_security_mmap_file(struct file *file,
-                                              unsigned long reqprot,
-                                              unsigned long prot,
-                                              unsigned long flags)
-{
-    int ret;
-    shield_action_t action;
-
-    action = shield_evaluate_file_mmap(file, prot, flags);
-    if (action != SHIELD_ACTION_ALLOW && g_shield_config.mode == SHIELD_MODE_ENFORCING) {
-        return -EACCES;
-    }
-
-    this_cpu_write(g_hook_reentrancy, 1);
-    ret = ((int (*)(struct file *, unsigned long, unsigned long, unsigned long))g_hook_sec_mmap.address)(file, reqprot, prot, flags);
-    this_cpu_write(g_hook_reentrancy, 0);
-
-    return ret;
-}
-#endif
 
 /*
  * Hook implementation for __x64_sys_mmap (Syscall boundary)
@@ -153,7 +131,6 @@ static asmlinkage int hook_security_mmap_file(struct file *file,
  */
 static asmlinkage long hook_sys_mmap(const struct pt_regs *regs)
 {
-    long ret;
     shield_action_t action;
 
     action = shield_evaluate_syscall_mmap(regs);
@@ -161,11 +138,7 @@ static asmlinkage long hook_sys_mmap(const struct pt_regs *regs)
         return -EPERM;
     }
 
-    this_cpu_write(g_hook_reentrancy, 1);
-    ret = ((long (*)(const struct pt_regs *))g_hook_sys_mmap.address)(regs);
-    this_cpu_write(g_hook_reentrancy, 0);
-
-    return ret;
+    return ((long (*)(const struct pt_regs *))g_hook_sys_mmap.address)(regs);
 }
 
 static int install_hook(struct ftrace_hook *hook)
@@ -179,8 +152,15 @@ static int install_hook(struct ftrace_hook *hook)
     }
 
     hook->ops.func = fh_ftrace_thunk;
+    /*
+     * FTRACE_OPS_FL_RECURSION exists only since 5.11 (it is an enum value,
+     * so it cannot be tested with #ifdef). Before 5.11 ftrace already applies
+     * recursion protection by default unless FTRACE_OPS_FL_RECURSION_SAFE is set.
+     */
     hook->ops.flags = FTRACE_OPS_FL_SAVE_REGS
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
                     | FTRACE_OPS_FL_RECURSION
+#endif
                     | FTRACE_OPS_FL_IPMODIFY;
 
     ret = ftrace_set_filter_ip(&hook->ops, hook->address, 0, 0);

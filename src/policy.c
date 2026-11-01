@@ -186,36 +186,40 @@ shield_action_t shield_evaluate_file_mmap(struct file *file, unsigned long prot,
         goto decide;
     }
 
-    /* 2. Policy: Sensitive System Files Protection */
+    /*
+     * 2. Policy: Dirty COW (CVE-2016-5195) Precursor Detection
+     * The Dirty COW exploit relies on:
+     *   - File opened read-only (f_mode & FMODE_READ && !(f_mode & FMODE_WRITE))
+     *   - Mapped with MAP_PRIVATE | PROT_WRITE
+     * This creates a COW mapping that racing threads (madvise + /proc/self/mem write)
+     * abuse to force dirty page writes into the Page Cache.
+     *
+     * Evaluated before the sensitive-file rule so the precursor is classified
+     * as DIRTY_COW instead of a generic sensitive-file violation.
+     *
+     * Restricted to protected paths: the dynamic loader (ld.so) and execve()
+     * map the .data segment of every binary/library exactly this way
+     * (O_RDONLY + MAP_PRIVATE | PROT_WRITE), so a global rule would prevent
+     * any dynamically linked program from starting.
+     */
+    if (g_shield_config.block_dirty_cow && file) {
+        bool file_opened_ro = !(file->f_mode & FMODE_WRITE);
+        bool req_private_write = (flags & MAP_PRIVATE) && (prot & PROT_WRITE);
+
+        if (file_opened_ro && req_private_write && is_path_protected(path_str)) {
+            verdict = SHIELD_BLOCK_DIRTY_COW;
+            atomic64_inc(&g_shield_stats.dirty_cow_detections);
+            goto decide;
+        }
+    }
+
+    /* 3. Policy: Sensitive System Files Protection */
     if (g_shield_config.block_sensitive && file && is_path_protected(path_str)) {
         /* Non-root process attempting write mapping on sensitive system file */
         if (!is_root && (prot & PROT_WRITE)) {
             verdict = SHIELD_BLOCK_SENSITIVE_FILE;
             atomic64_inc(&g_shield_stats.sensitive_violations);
             goto decide;
-        }
-    }
-
-    /*
-     * 3. Policy: Dirty COW (CVE-2016-5195) Precursor Detection
-     * The Dirty COW exploit relies on:
-     *   - File opened read-only (f_mode & FMODE_READ && !(f_mode & FMODE_WRITE))
-     *   - Mapped with MAP_PRIVATE | PROT_WRITE
-     *   - Caller is non-root or file belongs to root
-     * This creates a COW mapping that racing threads (madvise + /proc/self/mem write)
-     * abuse to force dirty page writes into the Page Cache.
-     */
-    if (g_shield_config.block_dirty_cow && file) {
-        bool file_opened_ro = !(file->f_mode & FMODE_WRITE);
-        bool req_private_write = (flags & MAP_PRIVATE) && (prot & PROT_WRITE);
-
-        if (file_opened_ro && req_private_write) {
-            /* If it's a sensitive file or root-owned file accessed by non-root */
-            if (!is_root || is_path_protected(path_str)) {
-                verdict = SHIELD_BLOCK_DIRTY_COW;
-                atomic64_inc(&g_shield_stats.dirty_cow_detections);
-                goto decide;
-            }
         }
     }
 

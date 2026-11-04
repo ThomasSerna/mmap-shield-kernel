@@ -2,9 +2,9 @@
 
 
 ## Integrantes
-- Juan Esteban Palacio
-- Mateo Montoya
-- Thomas Serna
+- Juan Esteban Palacio Betancur
+- Mateo Montoya Ospina
+- Thomas Serna Saldarriaga
 
 ---
 

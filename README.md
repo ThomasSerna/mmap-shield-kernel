@@ -24,7 +24,7 @@ La llamada al sistema `mmap()` permite proyectar archivos directamente en el esp
 
 ## 2. Arquitectura de `mmap-shield`
 
-`mmap-shield` es un módulo cargable de kernel (**LKM - Loadable Kernel Module**) diseñado y desarrollado bajo una arquitectura modular y compatible con versiones modernas del kernel Linux (**5.x / 6.x / 7.x**).
+`mmap-shield` es un módulo cargable de kernel (**LKM - Loadable Kernel Module**) que intercepta solicitudes de `mmap` mediante ftrace. Su funcionamiento depende de la arquitectura, la versión y la configuración concreta del kernel; debe compilarse y probarse en el sistema de destino.
 
 ```
                                   ESPACIO DE USUARIO (Ring 3)
@@ -38,7 +38,7 @@ La llamada al sistema `mmap()` permite proyectar archivos directamente en el esp
    +---------------------------------------------------------------------------------------+
    |  [Motor de Intercepción Hook Engine]                                                  |
    |   - Resolución segura de símbolos no exportados (kallsyms_lookup_name via kprobe)     |
-   |   - Hook ftrace en LSM: security_mmap_file (file_mmap)                                |
+   |   - Hook ftrace en la función de seguridad security_mmap_file                         |
    |   - Hook ftrace en Syscall: __x64_sys_mmap                                            |
    +-----------------------------------------+---------------------------------------------+
                                              |
@@ -73,12 +73,13 @@ El proyecto está debidamente estructurado en submódulos especializados en leng
 | `include/policy.h` | Reglas de validación de seguridad (W^X, archivos sensibles, mitigación Dirty COW, integridad compartida). |
 | `include/proc_interface.h` | Prototipos del sistema de archivos virtual `/proc/mmap_shield`. |
 | `src/main.c` | Punto de entrada (`init_module`) y salida (`cleanup_module`), parámetros del módulo (`enforce_mode`, `block_wx`, etc.), orquestación del ciclo de vida y gestión del buffer circular de auditoría con cerrojos de interrupción (`spin_lock_irqsave`). |
-| `src/hook_engine.c` | **Resolución dinámica y segura de símbolos** mediante sondeo temporal con `kprobe` (evitando alucinaciones de código que vulneran el bit WP de CR0 o asumen `kallsyms_lookup_name` exportado en kernels >= 5.7). Enganches concurrentes con protección de recursión basada en `within_module(parent_ip, THIS_MODULE)` usando `ftrace_ops` sobre `security_mmap_file` (hook oficial LSM `file_mmap`) y `__x64_sys_mmap`. |
+| `src/hook_engine.c` | Resolución dinámica de símbolos mediante un `kprobe` temporal y redirección mediante `ftrace_ops` de `security_mmap_file` y `__x64_sys_mmap`. No registra un módulo LSM independiente. |
 | `src/policy.c` | Motor de toma de decisiones de seguridad: resolución de rutas de archivo con `d_path()`, verificación de credenciales (`current_uid()`), análisis de banderas `prot` y `flags`, y aplicación de políticas en caliente. |
 | `src/proc_interface.c` | Interfaz administrativa y de telemetría `/proc/mmap_shield` utilizando el subsistema `seq_file` y `proc_ops`. Provee monitoreo de métricas atómicas en tiempo real, volcado del log de auditoría y recepción de comandos de reconfiguración dinámica (`mode=permissive`, `add_path=...`, `reset_stats`). |
-| `tests/test_runner.c` | Suite de pruebas en espacio de usuario que evalúa rigurosamente 5 escenarios de validación de memoria. |
-| `tests/run_tests.sh` | Script bash automatizado para compilación, despliegue, ejecución de pruebas de intrusión y auditoría. |
-| `Makefile` | Script de compilación limpia para el sistema Kbuild del kernel Linux, libre de advertencias (`-Wall -Wextra`). |
+| `tests/test_runner.c` | Cinco pruebas de mapeos permitidos y rechazados en espacio de usuario. |
+| `tests/run_tests.sh` | Compilación y ejecución de la suite con el módulo, seguida de la verificación de sus eventos de auditoría. |
+| `tests/benchmark_mmap.py` | Comparación de tiempo de `mmap` y fallos de página con y sin el módulo. |
+| `Makefile` | Compilación del módulo con Kbuild y de las pruebas de usuario. |
 
 ---
 
@@ -86,28 +87,32 @@ El proyecto está debidamente estructurado en submódulos especializados en leng
 
 ### A. Cumplimiento de la Política W^X (Write XOR Execute)
 - **Riesgo:** Un atacante proyecta una región de memoria con permisos de escritura y ejecución para cargar código binario (shellcode) y ejecutarlo inmediatamente en el contexto del proceso (técnica común en explotación de software y corrupción de memoria).
-- **Defensa:** `mmap-shield` inspecciona los argumentos de protección tanto a nivel de llamada al sistema (`__x64_sys_mmap`) como en el hook LSM. Si se detecta `(prot & PROT_WRITE) && (prot & PROT_EXEC)`, la llamada es abortada con error `-EPERM` o `-EACCES`.
+- **Defensa:** `mmap-shield` inspecciona los argumentos de protección tanto a nivel de llamada al sistema (`__x64_sys_mmap`) como en `security_mmap_file`. En modo estricto, si detecta `(prot & PROT_WRITE) && (prot & PROT_EXEC)`, rechaza la llamada con `-EPERM` o `-EACCES`.
 
 ### B. Mitigación en Origen de Ataques Dirty COW (CVE-2016-5195)
 - **Riesgo:** El atacante abre un archivo de solo lectura del sistema (ej. perteneciente a root) y solicita un mapeo `MAP_PRIVATE | PROT_WRITE`. Aunque POSIX permite esto bajo la semántica Copy-On-Write, hilos concurrentes que ejecutan `madvise(MADV_DONTNEED)` mientras escriben en `/proc/self/mem` engañan al manejador de fallos de página (`handle_mm_fault`) para escribir directamente en el Page Cache del archivo real.
-- **Defensa:** `mmap-shield` intercepta `security_mmap_file` y detecta la combinación precursora de este vector: archivo sin permiso de apertura para escritura (`!(file->f_mode & FMODE_WRITE)`) solicitado con `MAP_PRIVATE | PROT_WRITE` sobre archivos protegidos. Al bloquear esta llamada, se extirpa la vulnerabilidad antes de que el VMA sea creado.
+- **Defensa:** `mmap-shield` intercepta `security_mmap_file` y bloquea sobre rutas protegidas la combinación de descriptor de solo lectura (`!(file->f_mode & FMODE_WRITE)`) con `MAP_PRIVATE | PROT_WRITE`. Esto detecta un patrón precursor, no demuestra que el kernel esté protegido contra todas las variantes de Dirty COW ni sustituye las actualizaciones de seguridad del kernel.
 
 ### C. Protección de Archivos Sensibles y del Sistema
-- **Riesgo:** Procesos no privilegiados mapeando archivos críticos como `/etc/shadow`, `/etc/passwd`, `/etc/sudoers` o bibliotecas del sistema para inspección no autorizada o alteración de datos.
-- **Defensa:** Mantiene un registro dinámico de rutas protegidas. Si un proceso no root (`current_uid() != 0`) intenta mapear un archivo sensible con privilegios de escritura (`PROT_WRITE` o `MAP_SHARED`), la operación es bloqueada inmediatamente.
+- **Riesgo:** Procesos no privilegiados solicitando mapeos escribibles de archivos sensibles como `/etc/shadow`, `/etc/passwd` o `/etc/sudoers`.
+- **Defensa:** Mantiene un registro dinámico de rutas protegidas. Si un proceso no root (`current_uid() != 0`) solicita un mapeo con `PROT_WRITE` para una ruta protegida, el módulo intenta bloquearlo. La comparación es por ruta exacta, por lo que enlaces, renombrados o rutas visibles en otros espacios de nombres pueden afectar la protección.
 
 ### D. Integridad en Memoria Compartida (`MAP_SHARED`)
 - **Riesgo:** Escrituras no autorizadas en archivos subyacentes cuando el descriptor no posee facultades de escritura.
 - **Defensa:** Verificación estricta de coherencia entre `file->f_mode & FMODE_WRITE` y `(flags & MAP_SHARED) && (prot & PROT_WRITE)`.
+
+### Alcance de la protección
+
+El módulo evalúa solicitudes de `mmap`; no intercepta cambios posteriores de permisos mediante `mprotect` ni inspecciona cada acceso a una página ya mapeada. Las reglas sobre rutas dependen de la ruta resuelta en el momento del mapeo y no sustituyen los permisos del sistema de archivos. La protección W^X tampoco cubre todas las posibles formas de obtener memoria ejecutable y escribible.
 
 ---
 
 ## 5. Compilación y Uso
 
 ### Requisitos del Sistema
-- Linux Kernel 5.x, 6.x o 7.x (incluyendo entornos Ubuntu, Debian, Fedora, Arch y WSL2 con soporte de módulos).
-- Cabeceras de compilación del kernel instaladas (`linux-headers-$(uname -r)` o `linux-headers-generic`).
-- Herramientas de compilación: `gcc`, `make`, `build-essential`.
+- Linux x86-64 con soporte de módulos, kprobes y ftrace que permita modificar el flujo de ejecución; la disponibilidad de los símbolos y la carga del módulo dependen de la configuración del kernel.
+- Para la compilación normal, cabeceras correspondientes al kernel en ejecución (`linux-headers-$(uname -r)` en Debian/Ubuntu).
+- Herramientas: `gcc`, `make`, `bash`, `runuser` y Python 3 para el benchmark (en Debian/Ubuntu, `build-essential` incluye `gcc` y `make`).
 
 ### Comandos del Makefile
 
@@ -118,21 +123,29 @@ make
 # 2. Compilación del binario de pruebas en espacio de usuario
 make tests
 
-# 3. Cargar el módulo en el kernel (requiere privilegios sudo)
+# 3. Opcional: cargar el módulo en el kernel (requiere privilegios sudo)
 make load
 
 # 4. Consultar el estado y telemetría en tiempo real
 make status
 
-# 5. Ejecutar la suite automatizada de pruebas y validación
-make run-tests
-
-# 6. Descargar el módulo del kernel
+# 5. Descargar el módulo del kernel
 make unload
+
+# 6. Ejecutar la suite completa con el módulo inicialmente descargado
+sudo make run-tests
 
 # 7. Limpiar todos los artefactos compilados
 make clean
 ```
+
+Para compilar contra las cabeceras de otra versión de kernel, indique su directorio de compilación explícitamente:
+
+```bash
+make KDIR=/ruta/a/cabeceras/build
+```
+
+Esto permite comprobar la compilación para ese kernel, pero no implica que el módulo resultante pueda cargarse en el kernel actual.
 
 ---
 
@@ -200,16 +213,38 @@ echo "del_path=/mi/archivo/confidencial.db" | sudo tee /proc/mmap_shield
 echo "reset_stats" | sudo tee /proc/mmap_shield
 ```
 
+Las rutas añadidas deben ser absolutas y tener menos de 256 bytes. Los comandos inválidos y los errores al añadir o eliminar rutas se notifican al proceso que escribe.
+
 ---
 
-## 7. Suite de Pruebas y Resultados
+## 7. Suite de Pruebas
 
 El archivo `tests/test_runner.c` implementa pruebas reproducibles para cada vector de seguridad:
 
-| Escenario | Condición Evaluada | Comportamiento Esperado | Resultado |
-|---|---|---|---|
-| **Test 1** | Mapeo legítimo de archivo con `PROT_READ` y `MAP_PRIVATE` | Operación exitosa, datos leídos coinciden | **PASÓ (PERMITIDO)** |
-| **Test 2** | Asignación con `PROT_WRITE \| PROT_EXEC` (Violación W^X) | Bloqueado con `-EPERM` / `-EACCES` | **PASÓ (BLOQUEADO)** |
-| **Test 3** | Escritura sobre archivo sensible registrado en la política | Bloqueado con `-EACCES` | **PASÓ (BLOQUEADO)** |
-| **Test 4** | Precursor Dirty COW (`O_RDONLY` + `MAP_PRIVATE \| PROT_WRITE`) | Bloqueado preventivamente antes de VMA | **PASÓ (BLOQUEADO)** |
-| **Test 5** | Descriptor en solo lectura con `MAP_SHARED \| PROT_WRITE` | Rechazado con `-EACCES` | **PASÓ (RECHAZADO)** |
+| Escenario | Condición Evaluada | Comportamiento Esperado |
+|---|---|---|
+| **Test 1** | Mapeo legítimo de archivo con `PROT_READ` y `MAP_PRIVATE` | Operación exitosa y datos leídos coinciden |
+| **Test 2** | Asignación con `PROT_WRITE \| PROT_EXEC` (violación W^X) | Bloqueado con `-EPERM` / `-EACCES` |
+| **Test 3** | Escritura sobre archivo sensible registrado en la política | Bloqueado para un usuario no root |
+| **Test 4** | Precursor Dirty COW (`O_RDONLY` + `MAP_PRIVATE \| PROT_WRITE`) sobre una ruta protegida | Bloqueado antes de crear el VMA |
+| **Test 5** | Descriptor en solo lectura con `MAP_SHARED \| PROT_WRITE` | Rechazado con `-EACCES` por las comprobaciones del kernel |
+
+La tabla describe expectativas, no resultados medidos. Ejecute la suite en el kernel de destino y conserve su salida y la telemetría para documentar los resultados. El último caso puede ser rechazado por el propio kernel antes de alcanzar el hook, por lo que no demuestra por sí solo un bloqueo del módulo.
+
+La suite completa se ejecuta con `sudo make run-tests` y exige que el módulo esté descargado al comenzar. Carga el módulo, prepara archivos temporales propios, ejecuta las pruebas con el usuario que invocó `sudo` (o `nobody` si se ejecuta directamente como root), comprueba los eventos de auditoría y descarga el módulo al terminar. Un fallo produce un código de salida distinto de cero.
+
+## 8. Medición de rendimiento y fallos de página
+
+En Linux, ejecute ambas fases con el mismo usuario y las mismas opciones. El archivo de referencia se crea exclusivamente y no se sobrescribe si ya existe. El programa no carga ni descarga el módulo:
+
+```bash
+# Sin el módulo cargado: guarde la referencia
+python3 tests/benchmark_mmap.py baseline mmap-baseline.json
+
+# Cargue el módulo y compare con la referencia
+make load
+python3 tests/benchmark_mmap.py compare mmap-baseline.json
+make unload
+```
+
+Por defecto se ejecutan 1000 mapeos de 64 páginas; use `--iterations` y `--pages` en ambas fases para cambiarlos. La salida compara el tiempo medio por llamada a `mmap` y los fallos de página por segundo durante los accesos, además de los recuentos de fallos menores y mayores. Incluye el coste de Python, la caché y el ruido del sistema; no representa la latencia pura del kernel. Repita las mediciones bajo condiciones comparables y registre sus resultados para el informe.

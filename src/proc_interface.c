@@ -118,6 +118,7 @@ static ssize_t shield_proc_write(struct file *file, const char __user *ubuf,
 {
     char *kbuf;
     char *cmd;
+    int ret = 0;
 
     if (count == 0 || count > 512)
         return -EINVAL;
@@ -165,9 +166,9 @@ static ssize_t shield_proc_write(struct file *file, const char __user *ubuf,
         g_shield_config.audit_all = false;
         pr_info("[%s] Auditoria total desactivada\n", MODULE_NAME);
     } else if (strncmp(cmd, "add_path=", 9) == 0) {
-        shield_add_protected_path(cmd + 9);
+        ret = shield_add_protected_path(cmd + 9);
     } else if (strncmp(cmd, "del_path=", 9) == 0) {
-        shield_del_protected_path(cmd + 9);
+        ret = shield_del_protected_path(cmd + 9);
     } else if (strcmp(cmd, "reset_stats") == 0) {
         atomic64_set(&g_shield_stats.total_intercepted, 0);
         atomic64_set(&g_shield_stats.total_allowed, 0);
@@ -180,10 +181,11 @@ static ssize_t shield_proc_write(struct file *file, const char __user *ubuf,
         pr_info("[%s] Metricas y buffer de auditoria reiniciados\n", MODULE_NAME);
     } else {
         pr_warn("[%s] Comando desconocido en /proc/%s: '%s'\n", MODULE_NAME, PROC_ENTRY_NAME, cmd);
+        ret = -EINVAL;
     }
 
     kfree(kbuf);
-    return count;
+    return ret ? ret : count;
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)

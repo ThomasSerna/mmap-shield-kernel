@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #define COLOR_RESET   "\033[0m"
 #define COLOR_GREEN   "\033[1;32m"
@@ -16,8 +17,8 @@
 #define COLOR_CYAN    "\033[1;36m"
 #define COLOR_BLUE    "\033[1;34m"
 
-static const char *HONEYPOT_PATH = "/tmp/shield_protected.txt";
-static const char *BENIGN_PATH   = "/tmp/shield_benign.txt";
+static char HONEYPOT_PATH[PATH_MAX];
+static char BENIGN_PATH[PATH_MAX];
 
 static void print_banner(void)
 {
@@ -32,12 +33,12 @@ static int prepare_test_files(void)
     const char *sample_data = "DATOS_CONFIDENCIALES_MMAP_SHIELD_2026";
 
     /* Create benign test file */
-    fd = open(BENIGN_PATH, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    fd = open(BENIGN_PATH, O_RDWR | O_CREAT | O_EXCL, 0600);
     if (fd < 0) {
         perror("Error creando archivo benigno");
         return -1;
     }
-    if (write(fd, sample_data, strlen(sample_data)) < 0) {
+    if (write(fd, sample_data, strlen(sample_data)) != (ssize_t)strlen(sample_data)) {
         perror("Error escribiendo archivo benigno");
         close(fd);
         return -1;
@@ -45,12 +46,12 @@ static int prepare_test_files(void)
     close(fd);
 
     /* Create protected honeypot file */
-    fd = open(HONEYPOT_PATH, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    fd = open(HONEYPOT_PATH, O_RDWR | O_CREAT | O_EXCL, 0600);
     if (fd < 0) {
         perror("Error creando archivo honeypot");
         return -1;
     }
-    if (write(fd, sample_data, strlen(sample_data)) < 0) {
+    if (write(fd, sample_data, strlen(sample_data)) != (ssize_t)strlen(sample_data)) {
         perror("Error escribiendo archivo honeypot");
         close(fd);
         return -1;
@@ -113,7 +114,7 @@ static bool test_wx_violation(void)
         } else {
             printf("%s[ADVERTENCIA]%s Bloqueado con codigo inusual: errno=%d (%s)\n",
                    COLOR_YELLOW, COLOR_RESET, errno, strerror(errno));
-            return true;
+            return false;
         }
     }
 
@@ -132,20 +133,21 @@ static bool test_sensitive_file_protection(void)
     printf("[*] TEST 3: Acceso no autorizado a archivo sensible (%s)... ", HONEYPOT_PATH);
     int fd = open(HONEYPOT_PATH, O_RDWR);
     if (fd < 0) {
-        /* If cannot open O_RDWR, try O_RDONLY to test */
-        fd = open(HONEYPOT_PATH, O_RDONLY);
-    }
-    if (fd < 0) {
-        printf("%s[OMITIDO]%s No se puede acceder al archivo honeypot\n", COLOR_YELLOW, COLOR_RESET);
-        return true;
+        printf("%s[FALLO]%s No se puede abrir el archivo honeypot para escritura\n", COLOR_RED, COLOR_RESET);
+        return false;
     }
 
     void *addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (addr == MAP_FAILED) {
+    if (addr == MAP_FAILED && (errno == EACCES || errno == EPERM)) {
         printf("%s[PASO (BLOQUEADO CORRECTAMENTE: %s)]%s\n",
                COLOR_GREEN, strerror(errno), COLOR_RESET);
         close(fd);
         return true;
+    }
+    if (addr == MAP_FAILED) {
+        perror("mmap archivo sensible");
+        close(fd);
+        return false;
     }
 
     printf("%s[FALLO DE SEGURIDAD]%s Escritura compartida en archivo protegido fue permitida en %p\n",
@@ -165,16 +167,21 @@ static bool test_dirty_cow_pattern(void)
     printf("[*] TEST 4: Simulacion de vector precursor Dirty COW (RO + MAP_PRIVATE|PROT_WRITE)... ");
     int fd = open(HONEYPOT_PATH, O_RDONLY);
     if (fd < 0) {
-        printf("%s[OMITIDO]%s No se pudo abrir %s\n", COLOR_YELLOW, COLOR_RESET, HONEYPOT_PATH);
-        return true;
+        printf("%s[FALLO]%s No se pudo abrir %s\n", COLOR_RED, COLOR_RESET, HONEYPOT_PATH);
+        return false;
     }
 
     void *addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-    if (addr == MAP_FAILED) {
+    if (addr == MAP_FAILED && (errno == EACCES || errno == EPERM)) {
         printf("%s[PASO (BLOQUEADO PREVENTIVAMENTE: %s)]%s\n",
                COLOR_GREEN, strerror(errno), COLOR_RESET);
         close(fd);
         return true;
+    }
+    if (addr == MAP_FAILED) {
+        perror("mmap Dirty COW");
+        close(fd);
+        return false;
     }
 
     /* In standard unprotected Linux, POSIX allows this mapping for COW */
@@ -199,11 +206,16 @@ static bool test_shared_write_ro_fd(void)
     }
 
     void *addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (addr == MAP_FAILED) {
+    if (addr == MAP_FAILED && errno == EACCES) {
         printf("%s[PASO (RECHAZADO CORRECTAMENTE: %s)]%s\n",
                COLOR_GREEN, strerror(errno), COLOR_RESET);
         close(fd);
         return true;
+    }
+    if (addr == MAP_FAILED) {
+        perror("mmap MAP_SHARED");
+        close(fd);
+        return false;
     }
 
     printf("%s[FALLO]%s MAP_SHARED fue permitido sobre descriptor O_RDONLY\n",
@@ -215,10 +227,29 @@ static bool test_shared_write_ro_fd(void)
 
 int main(int argc, char *argv[])
 {
+    char temp_dir[] = "/tmp/mmap-shield-test-XXXXXX";
+    const char *dir = getenv("SHIELD_TEST_DIR");
+    bool own_dir = false;
+
     print_banner();
+
+    if (!dir) {
+        dir = mkdtemp(temp_dir);
+        own_dir = true;
+    }
+    if (!dir || snprintf(BENIGN_PATH, sizeof(BENIGN_PATH), "%s/benign", dir) >= (int)sizeof(BENIGN_PATH) ||
+        snprintf(HONEYPOT_PATH, sizeof(HONEYPOT_PATH), "%s/protected", dir) >= (int)sizeof(HONEYPOT_PATH)) {
+        fprintf(stderr, "Directorio de prueba invalido o demasiado largo.\n");
+        return 1;
+    }
 
     if (prepare_test_files() < 0) {
         fprintf(stderr, "Error inicializando archivos de prueba.\n");
+        if (own_dir) {
+            unlink(BENIGN_PATH);
+            unlink(HONEYPOT_PATH);
+            rmdir(dir);
+        }
         return 1;
     }
 
@@ -236,7 +267,8 @@ int main(int argc, char *argv[])
         case 5: if (test_shared_write_ro_fd()) passed++; break;
         default:
             fprintf(stderr, "Prueba desconocida: %d (Elige 1-5)\n", t);
-            return 1;
+            total = 1;
+            break;
         }
         total = 1;
     } else {
@@ -253,5 +285,9 @@ int main(int argc, char *argv[])
            passed, total, COLOR_RESET);
     printf("%s----------------------------------------------------------------------%s\n\n", COLOR_CYAN, COLOR_RESET);
 
+    unlink(BENIGN_PATH);
+    unlink(HONEYPOT_PATH);
+    if (own_dir)
+        rmdir(dir);
     return (passed == total) ? 0 : 1;
 }

@@ -57,8 +57,10 @@ int shield_add_protected_path(const char *path)
     size_t i;
     int slot = -1;
 
-    if (!path || path[0] == '\0')
+    if (!path || path[0] != '/')
         return -EINVAL;
+    if (strlen(path) >= MMAP_SHIELD_PATH_MAX)
+        return -ENAMETOOLONG;
 
     spin_lock_irqsave(&g_paths_lock, flags);
 

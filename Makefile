@@ -13,13 +13,7 @@ $(MODULE_NAME)-y := src/main.o src/hook_engine.o src/policy.o src/proc_interface
 # Flags de compilación limpia y cabeceras
 ccflags-y += -I$(src)/include -Wall -Wextra -Wno-unused-parameter
 
-# Detección inteligente del directorio de cabeceras del kernel (KDIR)
-# Prioriza el kernel en ejecución ($(uname -r)), con fallback al primer build disponible
-KDIR ?= $(shell if [ -d "/lib/modules/$$(uname -r)/build" ]; then \
-                    echo "/lib/modules/$$(uname -r)/build"; \
-                else \
-                    ls -d /lib/modules/*/build 2>/dev/null | head -n 1; \
-                fi)
+KDIR ?= /lib/modules/$(shell uname -r)/build
 
 PWD := $(CURDIR)
 
@@ -28,6 +22,7 @@ PWD := $(CURDIR)
 all: modules
 
 modules:
+	@test -d "$(KDIR)" || { echo "No se encontraron cabeceras en $(KDIR). Instale las del kernel activo o indique KDIR." >&2; exit 1; }
 	@echo "==> Compilando modulo $(MODULE_NAME) contra $(KDIR)..."
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 	@echo "==> Compilacion exitosa de $(MODULE_NAME).ko"

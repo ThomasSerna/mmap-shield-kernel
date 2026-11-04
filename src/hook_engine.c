@@ -166,6 +166,7 @@ static int install_hook(struct ftrace_hook *hook)
     ret = ftrace_set_filter_ip(&hook->ops, hook->address, 0, 0);
     if (ret) {
         pr_err("[%s] ftrace_set_filter_ip fallo para '%s' (err=%d)\n", MODULE_NAME, hook->name, ret);
+        hook->address = 0;
         return ret;
     }
 
@@ -173,6 +174,7 @@ static int install_hook(struct ftrace_hook *hook)
     if (ret) {
         pr_err("[%s] register_ftrace_function fallo para '%s' (err=%d)\n", MODULE_NAME, hook->name, ret);
         ftrace_set_filter_ip(&hook->ops, hook->address, 1, 0);
+        hook->address = 0;
         return ret;
     }
 
@@ -218,8 +220,9 @@ int shield_hook_init(void)
     g_hook_sec_mmap.function = (void *)hook_security_mmap_file;
     ret = install_hook(&g_hook_sec_mmap);
     if (ret) {
-        pr_warn("[%s] Advertencia: No se pudo enganchar security_mmap_file (err=%d)\n",
-                MODULE_NAME, ret);
+        pr_err("[%s] No se pudo enganchar security_mmap_file (err=%d)\n",
+               MODULE_NAME, ret);
+        return ret;
     }
 
     /* 2. Hook __x64_sys_mmap (Syscall table / entry) */
@@ -231,14 +234,10 @@ int shield_hook_init(void)
     g_hook_sys_mmap.function = (void *)hook_sys_mmap;
     ret = install_hook(&g_hook_sys_mmap);
     if (ret) {
-        pr_warn("[%s] Advertencia: No se pudo enganchar syscall mmap (err=%d)\n",
-                MODULE_NAME, ret);
-    }
-
-    /* Verify at least one hook is operational */
-    if (!g_hook_sec_mmap.address && !g_hook_sys_mmap.address) {
-        pr_err("[%s] Error critico: Ningun hook pudo ser instalado\n", MODULE_NAME);
-        return -ENODEV;
+        pr_err("[%s] No se pudo enganchar syscall mmap (err=%d)\n",
+               MODULE_NAME, ret);
+        remove_hook(&g_hook_sec_mmap);
+        return ret;
     }
 
     pr_info("[%s] Motor de intercepcion ftrace inicializado correctamente\n", MODULE_NAME);

@@ -15,6 +15,9 @@ ccflags-y += -I$(src)/include -Wall
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
 
+# Comando de carga; en WSL con otro gcc: make load INSMOD="insmod -f" (ver README)
+INSMOD ?= insmod
+
 PWD := $(CURDIR)
 
 .PHONY: all modules clean load unload reload status tests run-tests measure help
@@ -39,7 +42,7 @@ load:
 	@if lsmod | grep -q $(MODULE_NAME); then \
 		echo "El modulo $(MODULE_NAME) ya esta cargado."; \
 	else \
-		sudo insmod $(MODULE_NAME).ko enforce_mode=1 block_wx=1 block_dirty_cow=1 && \
+		sudo $(INSMOD) $(MODULE_NAME).ko enforce_mode=1 block_wx=1 block_dirty_cow=1 && \
 		echo "Modulo $(MODULE_NAME) cargado correctamente."; \
 	fi
 

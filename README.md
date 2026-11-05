@@ -199,9 +199,10 @@ cd ~/WSL2-Linux-Kernel && rm -rf .git && zcat /proc/config.gz > .config && make 
 cd - && make KDIR=~/WSL2-Linux-Kernel
 ```
 
-Si el árbol se compila con una versión de gcc distinta de la del kernel de WSL, los CRC de `CONFIG_MODVERSIONS` no coinciden: `insmod` responde `Invalid module format` y `dmesg` muestra `disagrees about version of symbol module_layout`. Con la misma configuración, el módulo puede cargarse forzando la versión (el kernel de WSL tiene `CONFIG_MODULE_FORCE_LOAD`), y los scripts aceptan el comando de carga en la variable `INSMOD`:
+Si el árbol se compila con una versión de gcc distinta de la del kernel de WSL, los CRC de `CONFIG_MODVERSIONS` no coinciden: `insmod` responde `Invalid module format` y `dmesg` muestra `disagrees about version of symbol module_layout`. Con la misma configuración, el módulo puede cargarse forzando la versión (el kernel de WSL tiene `CONFIG_MODULE_FORCE_LOAD`), y el Makefile y los scripts aceptan el comando de carga en la variable `INSMOD`:
 
 ```bash
+make load INSMOD="insmod -f"
 sudo make run-tests INSMOD="insmod -f"
 sudo make measure INSMOD="insmod -f"
 ```

@@ -17,6 +17,7 @@ modules.builtin.modinfo
 
 # Compiled binaries and tests
 tests/test_runner
+tests/race_attacks
 tests/*.bin
 tests/*.log
 

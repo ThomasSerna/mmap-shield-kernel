@@ -31,7 +31,7 @@ clean:
 	@echo "==> Limpiando artefactos de compilacion del kernel..."
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	@rm -f src/*.o src/.*.cmd src/*.mod src/*.mod.c src/.*.d
-	@rm -f tests/test_runner tests/*.log
+	@rm -f tests/test_runner tests/race_attacks tests/*.log
 	@echo "==> Limpieza completada."
 
 load:
@@ -66,7 +66,8 @@ status:
 tests:
 	@echo "==> Compilando suite de pruebas de espacio de usuario..."
 	gcc -O2 -Wall -Wextra tests/test_runner.c -o tests/test_runner
-	@echo "==> Binario de pruebas generado: tests/test_runner"
+	gcc -O2 -Wall -Wextra -pthread tests/race_attacks.c -o tests/race_attacks
+	@echo "==> Binarios de pruebas generados: tests/test_runner tests/race_attacks"
 
 run-tests: tests
 	@echo "==> Ejecutando suite de pruebas automatizadas..."

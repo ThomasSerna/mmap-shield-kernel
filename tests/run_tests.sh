@@ -88,6 +88,33 @@ for cmd in "ls /" "bash -c true" "python3 -c pass" "gcc --version" "make --versi
     fi
 done
 
+echo "==> Fase 3: simulacion de ataques de carrera como '$test_user'"
+printf 'DATOS_DE_ROOT_SOLO_LECTURA\n' > "$test_dir/root_protected"
+chmod 0644 "$test_dir/root_protected"
+as_user sh -c 'printf "VICTIMA_ORIGINAL\n" > "$1/victim"; printf "SENUELO\n" > "$1/decoy"' _ "$test_dir"
+printf 'add_path=%s/root_protected\n' "$test_dir" > "$PROC_FILE"
+printf 'add_path=%s/victim\n' "$test_dir" > "$PROC_FILE"
+root_before=$(sha256sum < "$test_dir/root_protected")
+as_user "$SCRIPT_DIR/race_attacks" "$test_dir/root_protected" "$test_dir/victim" "$test_dir/decoy"
+if [[ "$(sha256sum < "$test_dir/root_protected")" != "$root_before" ]]; then
+    echo "El archivo de root fue modificado durante la carrera." >&2
+    exit 1
+fi
+grep -E "Patrones Dirty COW|Accesos sensibles" "$PROC_FILE"
+
+echo "==> Fase 4: descarga y recarga del modulo con llamadas mmap/mprotect en curso"
+as_user "$SCRIPT_DIR/race_attacks" --stress "$test_dir" 15 &
+stress_pid=$!
+for _ in $(seq 1 10); do
+    rmmod mmap_shield
+    loaded=0
+    $INSMOD "$MODULE_KO" "${MODULE_ARGS[@]}"
+    loaded=1
+done
+wait "$stress_pid"
+stress_pid=""
+echo "  10 ciclos rmmod/insmod completados con carga concurrente."
+
 echo "==> Verificacion de mensajes del kernel"
 if dmesg | sed -n "/$kmsg_marker/,\$p" | grep -E "Missing ENDBR|BUG:|Oops|general protection fault|Call Trace"; then
     echo "El kernel registro errores durante las pruebas." >&2

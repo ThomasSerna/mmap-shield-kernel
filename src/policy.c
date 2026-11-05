@@ -2,6 +2,8 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/mount.h>
+#include <linux/personality.h>
 #include <linux/dcache.h>
 #include <linux/path.h>
 #include <linux/slab.h>
@@ -159,8 +161,33 @@ struct shield_request {
     unsigned long prot;          /* Protection being requested */
     unsigned long flags;         /* MAP_* flags (for mprotect: MAP_SHARED/MAP_PRIVATE of the VMA) */
     bool shared;                 /* Writes reach the page cache (MAP_SHARED / VM_SHARED) */
+    bool shared_maywrite;        /* Shared view that is or can become writable */
     shield_origin_t origin;
 };
+
+/* Same test as path_noexec(), which is not exported to modules. */
+static bool shield_path_noexec(const struct path *path)
+{
+    return (path->mnt->mnt_flags & MNT_NOEXEC) ||
+           (path->mnt->mnt_sb->s_iflags & SB_I_NOEXEC);
+}
+
+/*
+ * Effective protection of a new mapping, replicating mmap_prot() in
+ * security/security.c. With the READ_IMPLIES_EXEC personality, do_mmap()
+ * silently adds PROT_EXEC to readable mappings (PROT_READ | PROT_WRITE ends
+ * up RWX), but security_mmap_file() only receives the requested value.
+ */
+static unsigned long shield_mmap_effective_prot(struct file *file, unsigned long prot)
+{
+    if ((prot & (PROT_READ | PROT_EXEC)) != PROT_READ)
+        return prot;
+    if (!(current->personality & READ_IMPLIES_EXEC))
+        return prot;
+    if (!file || !shield_path_noexec(&file->f_path))
+        return prot | PROT_EXEC;
+    return prot;
+}
 
 static const char *verdict_to_log(shield_action_t verdict)
 {
@@ -173,6 +200,8 @@ static const char *verdict_to_log(shield_action_t verdict)
         return "DETECCION_DIRTY_COW";
     case SHIELD_BLOCK_SHARED_WRITE:
         return "BLOQUEO_MAP_SHARED";
+    case SHIELD_BLOCK_WX_ALIAS:
+        return "BLOQUEO_ALIAS_W^X";
     default:
         return "PERMITIDO";
     }
@@ -212,10 +241,25 @@ static bool shield_evaluate(const struct shield_request *req)
         }
     }
 
-    /* 1. Policy W^X (Write XOR Execute) */
+    /* 1. Policy W^X (Write XOR Execute) on the effective protection */
     if (g_shield_config.block_wx && (prot & PROT_WRITE) && (prot & PROT_EXEC)) {
         verdict = SHIELD_BLOCK_WX;
         atomic64_inc(&g_shield_stats.wx_violations);
+        goto decide;
+    }
+
+    /*
+     * 1b. Policy W^X across aliases of the same file.
+     * Per-mapping W^X is not enough: a file (typically a memfd) can be mapped
+     * twice, once writable and once executable, and code written through the
+     * first view runs through the second. Executable access is denied while
+     * the file has shared writable mappings, or when this very view is shared
+     * and is or can become writable (writable descriptor / VM_MAYWRITE).
+     */
+    if (g_shield_config.block_wx && file && (prot & PROT_EXEC) &&
+        (req->shared_maywrite || mapping_writably_mapped(file->f_mapping))) {
+        verdict = SHIELD_BLOCK_WX_ALIAS;
+        atomic64_inc(&g_shield_stats.wx_alias_violations);
         goto decide;
     }
 
@@ -304,12 +348,14 @@ decide:
 bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flags)
 {
     unsigned long type = flags & MAP_TYPE;
+    bool shared = (type == MAP_SHARED || type == MAP_SHARED_VALIDATE);
     struct shield_request req = {
-        .file   = file,
-        .prot   = prot,
-        .flags  = flags,
-        .shared = (type == MAP_SHARED || type == MAP_SHARED_VALIDATE),
-        .origin = SHIELD_ORIGIN_MMAP,
+        .file            = file,
+        .prot            = shield_mmap_effective_prot(file, prot),
+        .flags           = flags,
+        .shared          = shared,
+        .shared_maywrite = shared && file && (file->f_mode & FMODE_WRITE),
+        .origin          = SHIELD_ORIGIN_MMAP,
     };
 
     return shield_evaluate(&req);
@@ -325,11 +371,12 @@ bool shield_check_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
 {
     bool shared = !!(vma->vm_flags & VM_SHARED);
     struct shield_request req = {
-        .file   = vma->vm_file,
-        .prot   = prot,
-        .flags  = shared ? MAP_SHARED : MAP_PRIVATE,
-        .shared = shared,
-        .origin = SHIELD_ORIGIN_MPROTECT,
+        .file            = vma->vm_file,
+        .prot            = prot,
+        .flags           = shared ? MAP_SHARED : MAP_PRIVATE,
+        .shared          = shared,
+        .shared_maywrite = shared && (vma->vm_flags & VM_MAYWRITE),
+        .origin          = SHIELD_ORIGIN_MPROTECT,
     };
 
     return shield_evaluate(&req);

@@ -144,6 +144,7 @@ static int __init mmap_shield_init(void)
     atomic64_set(&g_shield_stats.total_allowed, 0);
     atomic64_set(&g_shield_stats.total_blocked, 0);
     atomic64_set(&g_shield_stats.wx_violations, 0);
+    atomic64_set(&g_shield_stats.wx_alias_violations, 0);
     atomic64_set(&g_shield_stats.sensitive_violations, 0);
     atomic64_set(&g_shield_stats.dirty_cow_detections, 0);
     atomic64_set(&g_shield_stats.shared_write_violations, 0);

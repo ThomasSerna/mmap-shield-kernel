@@ -27,6 +27,8 @@ static const char *action_to_str(shield_action_t action)
         return "DIRTY_COW";
     case SHIELD_BLOCK_SHARED_WRITE:
         return "BLOQUEO_SHARED";
+    case SHIELD_BLOCK_WX_ALIAS:
+        return "BLOQUEO_ALIAS_WX";
     default:
         return "DESCONOCIDO";
     }
@@ -58,6 +60,7 @@ static int shield_proc_show(struct seq_file *m, void *v)
     seq_printf(m, "  Mapeos permitidos:                %lld\n", atomic64_read(&g_shield_stats.total_allowed));
     seq_printf(m, "  Mapeos bloqueados:                %lld\n", atomic64_read(&g_shield_stats.total_blocked));
     seq_printf(m, "  Violaciones W^X prevenidas:       %lld\n", atomic64_read(&g_shield_stats.wx_violations));
+    seq_printf(m, "  Alias W^X (doble mapeo) evitados: %lld\n", atomic64_read(&g_shield_stats.wx_alias_violations));
     seq_printf(m, "  Accesos sensibles bloqueados:     %lld\n", atomic64_read(&g_shield_stats.sensitive_violations));
     seq_printf(m, "  Patrones Dirty COW detectados:    %lld\n", atomic64_read(&g_shield_stats.dirty_cow_detections));
     seq_printf(m, "  Violaciones MAP_SHARED Write:     %lld\n\n", atomic64_read(&g_shield_stats.shared_write_violations));
@@ -177,6 +180,7 @@ static ssize_t shield_proc_write(struct file *file, const char __user *ubuf,
         atomic64_set(&g_shield_stats.total_allowed, 0);
         atomic64_set(&g_shield_stats.total_blocked, 0);
         atomic64_set(&g_shield_stats.wx_violations, 0);
+        atomic64_set(&g_shield_stats.wx_alias_violations, 0);
         atomic64_set(&g_shield_stats.sensitive_violations, 0);
         atomic64_set(&g_shield_stats.dirty_cow_detections, 0);
         atomic64_set(&g_shield_stats.shared_write_violations, 0);

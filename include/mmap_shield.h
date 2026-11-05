@@ -25,6 +25,7 @@ typedef enum {
     SHIELD_BLOCK_SENSITIVE_FILE, /* Unauthorized write to protected/sensitive file */
     SHIELD_BLOCK_DIRTY_COW,      /* Dirty COW pattern: RO file mapped MAP_PRIVATE | PROT_WRITE */
     SHIELD_BLOCK_SHARED_WRITE,   /* Unauthorized MAP_SHARED with PROT_WRITE */
+    SHIELD_BLOCK_WX_ALIAS,       /* Executable view of a file that is (or can be) writable through another view */
 } shield_action_t;
 
 /* Policy enforcement mode */
@@ -61,6 +62,7 @@ struct shield_stats {
     atomic64_t total_allowed;
     atomic64_t total_blocked;
     atomic64_t wx_violations;
+    atomic64_t wx_alias_violations;
     atomic64_t sensitive_violations;
     atomic64_t dirty_cow_detections;
     atomic64_t shared_write_violations;

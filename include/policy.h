@@ -2,7 +2,6 @@
 #define POLICY_H
 
 #include <linux/fs.h>
-#include <linux/ptrace.h>
 #include <linux/seq_file.h>
 #include "mmap_shield.h"
 
@@ -14,9 +13,12 @@ struct protected_path {
     bool active;
 };
 
-/* Policy evaluation routines */
-shield_action_t shield_evaluate_file_mmap(struct file *file, unsigned long prot, unsigned long flags);
-shield_action_t shield_evaluate_syscall_mmap(const struct pt_regs *regs);
+/*
+ * Policy evaluation routines, called from the ftrace callback (atomic context).
+ * They record telemetry/audit and return true when the call must be denied
+ * (a violation was found and the module is in ENFORCING mode).
+ */
+bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flags);
 
 /* Protected path management */
 int  shield_add_protected_path(const char *path);

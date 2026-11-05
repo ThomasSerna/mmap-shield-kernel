@@ -3,24 +3,28 @@
 #include <linux/version.h>
 #include <linux/kprobes.h>
 #include <linux/ftrace.h>
-#include <linux/slab.h>
+#include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
 #include "../include/mmap_shield.h"
 #include "../include/hook_engine.h"
 #include "../include/policy.h"
 
-#if defined(CONFIG_X86_64)
-#include <asm/ftrace.h>
+/*
+ * Arguments are read from pt_regs following the x86_64 calling convention and
+ * the decision is applied by rewriting regs->ip, which needs ftrace with
+ * register saving (FTRACE_OPS_FL_SAVE_REGS / IPMODIFY).
+ */
+#if !defined(CONFIG_X86_64)
+#error "mmap-shield requiere x86_64"
+#endif
+#if !defined(CONFIG_DYNAMIC_FTRACE_WITH_REGS)
+#error "mmap-shield requiere CONFIG_DYNAMIC_FTRACE_WITH_REGS"
 #endif
 
 /* Typedef for resolved kallsyms_lookup_name */
 typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
 static kallsyms_lookup_name_t g_kallsyms_lookup_name = NULL;
-
-/* Forward declarations of hook thunks and handlers */
-static struct ftrace_hook g_hook_sec_mmap;
-static struct ftrace_hook g_hook_sys_mmap;
 
 /*
  * Resolves kallsyms_lookup_name dynamically.
@@ -68,78 +72,62 @@ unsigned long shield_resolve_symbol(const char *name)
 }
 
 /*
- * Ftrace callback thunk.
- * Handles the redirection of execution flow to our hook function.
- *
- * Recursion guard: when our hook calls the original function, the ftrace
- * trampoline fires again. In that case the caller (parent_ip) lies inside
- * this module, so we let the original run untouched. Calls coming from
- * anywhere else in the kernel (including nested calls such as
- * __x64_sys_mmap -> vm_mmap_pgoff -> security_mmap_file) are still
- * redirected, and no per-CPU state is held across code that may sleep.
+ * security_mmap_file(file, prot, flags)
+ * Runs for every mapping request (file-backed and anonymous) coming from
+ * mmap, mmap2/compat, remap_file_pages and shmat, before the VMA is created.
  */
+static bool mmap_file_should_deny(struct pt_regs *regs)
+{
+    struct file *file = (struct file *)regs_get_kernel_argument(regs, 0);
+    unsigned long prot = regs_get_kernel_argument(regs, 1);
+    unsigned long flags = regs_get_kernel_argument(regs, 2);
+
+    return shield_check_mmap(file, prot, flags);
+}
+
+/* Executed instead of security_mmap_file() when the mapping is denied. */
+static noinline int deny_mmap_file(struct file *file, unsigned long prot,
+                                   unsigned long flags)
+{
+    return -EACCES;
+}
+
+static struct ftrace_hook g_hooks[] = {
+    {
+        .name        = "security_mmap_file",
+        .should_deny = mmap_file_should_deny,
+        .deny_stub   = deny_mmap_file,
+    },
+};
+
+/*
+ * Ftrace callback. Runs at the entry of the hooked function with preemption
+ * disabled and recursion protection provided by ftrace, so the policy code
+ * must not sleep. If the policy denies the call, the saved instruction
+ * pointer is redirected to the deny stub, which returns straight to the
+ * caller of the hooked function.
+ */
+static void notrace fh_handle(struct ftrace_ops *ops, struct pt_regs *regs)
+{
+    struct ftrace_hook *hook = container_of(ops, struct ftrace_hook, ops);
+
+    if (regs && hook->should_deny(regs))
+        regs->ip = (unsigned long)hook->deny_stub;
+}
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
 static void notrace fh_ftrace_thunk(unsigned long ip, unsigned long parent_ip,
                                     struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
-    struct ftrace_hook *hook = container_of(ops, struct ftrace_hook, ops);
-    struct pt_regs *regs = ftrace_get_regs(fregs);
-
-    if (!regs || within_module(parent_ip, THIS_MODULE))
-        return;
-
-    regs->ip = (unsigned long)hook->function;
+    fh_handle(ops, ftrace_get_regs(fregs));
 }
 #else
 static void notrace fh_ftrace_thunk(unsigned long ip, unsigned long parent_ip,
                                     struct ftrace_ops *ops, struct pt_regs *regs)
 {
-    struct ftrace_hook *hook = container_of(ops, struct ftrace_hook, ops);
-
-    if (within_module(parent_ip, THIS_MODULE))
-        return;
-
-    regs->ip = (unsigned long)hook->function;
+    fh_handle(ops, regs);
 }
 #endif
-
-/*
- * Hook implementation for security_mmap_file.
- * The exported wrapper has kept the signature (file, prot, flags) across
- * 5.x / 6.x; "reqprot" only exists in the internal LSM mmap_file hook.
- */
-static int hook_security_mmap_file(struct file *file,
-                                   unsigned long prot,
-                                   unsigned long flags)
-{
-    shield_action_t action;
-
-    /* Evaluate security policy */
-    action = shield_evaluate_file_mmap(file, prot, flags);
-    if (action != SHIELD_ACTION_ALLOW && g_shield_config.mode == SHIELD_MODE_ENFORCING) {
-        /* Reject the mapping before VMA creation */
-        return -EACCES;
-    }
-
-    /* Call the original security_mmap_file (thunk skips calls from this module) */
-    return ((int (*)(struct file *, unsigned long, unsigned long))g_hook_sec_mmap.address)(file, prot, flags);
-}
-
-/*
- * Hook implementation for __x64_sys_mmap (Syscall boundary)
- * Allows catching anonymous mappings and validating W^X directly.
- */
-static asmlinkage long hook_sys_mmap(const struct pt_regs *regs)
-{
-    shield_action_t action;
-
-    action = shield_evaluate_syscall_mmap(regs);
-    if (action != SHIELD_ACTION_ALLOW && g_shield_config.mode == SHIELD_MODE_ENFORCING) {
-        return -EPERM;
-    }
-
-    return ((long (*)(const struct pt_regs *))g_hook_sys_mmap.address)(regs);
-}
 
 static int install_hook(struct ftrace_hook *hook)
 {
@@ -206,6 +194,7 @@ static void remove_hook(struct ftrace_hook *hook)
 
 int shield_hook_init(void)
 {
+    size_t i;
     int ret;
 
     /* Initialize symbol resolver */
@@ -215,29 +204,15 @@ int shield_hook_init(void)
         return ret;
     }
 
-    /* 1. Hook security_mmap_file (LSM hook file_mmap) */
-    g_hook_sec_mmap.name = "security_mmap_file";
-    g_hook_sec_mmap.function = (void *)hook_security_mmap_file;
-    ret = install_hook(&g_hook_sec_mmap);
-    if (ret) {
-        pr_err("[%s] No se pudo enganchar security_mmap_file (err=%d)\n",
-               MODULE_NAME, ret);
-        return ret;
-    }
-
-    /* 2. Hook __x64_sys_mmap (Syscall table / entry) */
-#if defined(CONFIG_X86_64)
-    g_hook_sys_mmap.name = "__x64_sys_mmap";
-#else
-    g_hook_sys_mmap.name = "sys_mmap";
-#endif
-    g_hook_sys_mmap.function = (void *)hook_sys_mmap;
-    ret = install_hook(&g_hook_sys_mmap);
-    if (ret) {
-        pr_err("[%s] No se pudo enganchar syscall mmap (err=%d)\n",
-               MODULE_NAME, ret);
-        remove_hook(&g_hook_sec_mmap);
-        return ret;
+    for (i = 0; i < ARRAY_SIZE(g_hooks); i++) {
+        ret = install_hook(&g_hooks[i]);
+        if (ret) {
+            pr_err("[%s] No se pudo enganchar %s (err=%d)\n",
+                   MODULE_NAME, g_hooks[i].name, ret);
+            while (i--)
+                remove_hook(&g_hooks[i]);
+            return ret;
+        }
     }
 
     pr_info("[%s] Motor de intercepcion ftrace inicializado correctamente\n", MODULE_NAME);
@@ -246,10 +221,12 @@ int shield_hook_init(void)
 
 void shield_hook_cleanup(void)
 {
-    remove_hook(&g_hook_sec_mmap);
-    remove_hook(&g_hook_sys_mmap);
+    size_t i;
 
-    /* Synchronize RCU and allow all in-flight hooks to drain */
+    for (i = 0; i < ARRAY_SIZE(g_hooks); i++)
+        remove_hook(&g_hooks[i]);
+
+    /* Synchronize RCU and allow all in-flight callbacks to drain */
     synchronize_rcu();
     pr_info("[%s] Motor de intercepcion ftrace descargado y sincronizado\n", MODULE_NAME);
 }

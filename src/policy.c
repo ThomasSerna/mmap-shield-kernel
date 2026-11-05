@@ -155,8 +155,9 @@ static bool is_path_protected(const char *file_path)
 /*
  * Evaluates policy for file_mmap (security_mmap_file).
  * Intercepts at the LSM layer before any VMA allocation or Page Cache access.
+ * Anonymous mappings arrive here too, with file == NULL.
  */
-shield_action_t shield_evaluate_file_mmap(struct file *file, unsigned long prot, unsigned long flags)
+bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flags)
 {
     char *path_buf = NULL;
     char *resolved_path = NULL;
@@ -241,16 +242,16 @@ decide:
             atomic64_inc(&g_shield_stats.total_blocked);
         }
 
-        pr_warn("[%s] ALERTA DE SEGURIDAD: PID=%d (%s) UID=%u Path=%s Prot=0x%lx Flags=0x%lx Accion=%s [%s]\n",
-                MODULE_NAME, pid, current->comm, from_kuid(&init_user_ns, uid),
-                path_str, prot, flags,
-                verdict == SHIELD_BLOCK_WX ? "BLOQUEO_W^X" :
-                verdict == SHIELD_BLOCK_SENSITIVE_FILE ? "BLOQUEO_ARCHIVO_SENSIBLE" :
-                verdict == SHIELD_BLOCK_DIRTY_COW ? "DETECCION_DIRTY_COW" : "BLOQUEO_MAP_SHARED",
-                enforced ? "BLOQUEADO" : "PERMISIVO");
+        pr_warn_ratelimited("[%s] ALERTA DE SEGURIDAD: PID=%d (%s) UID=%u Path=%s Prot=0x%lx Flags=0x%lx Accion=%s [%s]\n",
+                            MODULE_NAME, pid, current->comm, from_kuid(&init_user_ns, uid),
+                            path_str, prot, flags,
+                            verdict == SHIELD_BLOCK_WX ? "BLOQUEO_W^X" :
+                            verdict == SHIELD_BLOCK_SENSITIVE_FILE ? "BLOQUEO_ARCHIVO_SENSIBLE" :
+                            verdict == SHIELD_BLOCK_DIRTY_COW ? "DETECCION_DIRTY_COW" : "BLOQUEO_MAP_SHARED",
+                            enforced ? "BLOQUEADO" : "PERMISIVO");
 
         shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, flags, verdict, enforced);
-        return verdict;
+        return enforced;
     }
 
     atomic64_inc(&g_shield_stats.total_allowed);
@@ -259,40 +260,5 @@ decide:
         shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, flags, SHIELD_ACTION_ALLOW, 0);
     }
 
-    return SHIELD_ACTION_ALLOW;
-}
-
-/*
- * Evaluates policy at the raw syscall level (__x64_sys_mmap).
- * Handles anonymous memory allocations where file is NULL.
- */
-shield_action_t shield_evaluate_syscall_mmap(const struct pt_regs *regs)
-{
-    unsigned long prot = regs->dx;
-    unsigned long flags = regs->r10;
-    kuid_t uid = current_uid();
-    pid_t pid = current->pid;
-    pid_t tgid = current->tgid;
-
-    /* Enforce W^X on anonymous mappings (e.g., shellcode staging / JIT spray) */
-    if (g_shield_config.block_wx && (prot & PROT_WRITE) && (prot & PROT_EXEC)) {
-        int enforced = (g_shield_config.mode == SHIELD_MODE_ENFORCING);
-
-        atomic64_inc(&g_shield_stats.total_intercepted);
-        atomic64_inc(&g_shield_stats.wx_violations);
-        if (enforced) {
-            atomic64_inc(&g_shield_stats.total_blocked);
-        }
-
-        pr_warn("[%s] ALERTA W^X ANONIMA: PID=%d (%s) UID=%u Prot=0x%lx Flags=0x%lx [%s]\n",
-                MODULE_NAME, pid, current->comm, from_kuid(&init_user_ns, uid),
-                prot, flags, enforced ? "BLOQUEADO" : "PERMISIVO");
-
-        shield_audit_log(pid, tgid, uid, current->comm, "<anonymous>", prot, flags,
-                         SHIELD_BLOCK_WX, enforced);
-
-        return SHIELD_BLOCK_WX;
-    }
-
-    return SHIELD_ACTION_ALLOW;
+    return false;
 }

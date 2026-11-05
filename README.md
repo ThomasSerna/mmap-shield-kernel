@@ -143,13 +143,36 @@ Todas las políticas se aplican tanto a nuevos mapeos (`mmap`) como a cambios de
 - Cabeceras correspondientes al kernel en ejecución (`linux-headers-$(uname -r)` en Debian/Ubuntu).
 - Herramientas: `gcc`, `make`, `bash`, `runuser`; para la medición, opcionalmente `perf` (`linux-tools-generic`) y `strace`; Python 3 para `benchmark_mmap.py`.
 
+### Entorno utilizado
+
+| Elemento | Versión |
+|---|---|
+| Sistema anfitrión | Windows 11 con WSL 2.7.10.0 |
+| Distribución | Ubuntu 26.04 LTS (WSL2) |
+| Kernel en ejecución | 6.18.33.2-microsoft-standard-WSL2, compilado por Microsoft con gcc 13.2.0, IBT activo |
+| Compilador del módulo | gcc 15.2.0 (Ubuntu 15.2.0-16ubuntu1), GNU Make 4.4.1 |
+| CPU | Intel Core Ultra 9 275HX (x86-64) |
+
+WSL2 no publica paquetes `linux-headers` para su kernel, así que el módulo se compila contra el árbol de fuentes de ese kernel (ver "Prueba en WSL2" más abajo). Las demás versiones se verificaron compilando contra las cabeceras oficiales de Ubuntu, extraídas de sus paquetes sin instalarlas:
+
+```bash
+mkdir -p ~/hdrs && cd ~/hdrs
+apt-get download linux-headers-7.0.0-42 linux-headers-7.0.0-42-generic
+for d in *.deb; do dpkg-deb -x "$d" root; done
+cd - && make KDIR=~/hdrs/root/usr/src/linux-headers-7.0.0-42-generic W=1
+```
+
+Las cabeceras de 5.15 no están en los repositorios de Ubuntu 26.04; se descargaron de `jammy-updates` en `archive.ubuntu.com` y se extrajeron igual.
+
 ### Compatibilidad verificada
 
-| Kernel | Compilación (`make W=1`) | Carga y pruebas |
-|---|---|---|
-| Ubuntu 5.15.0-203-generic | Sin advertencias | No probado |
-| WSL2 6.18.33.2-microsoft-standard-WSL2 (IBT activo) | Sin advertencias | Suite completa y medición (ver `results/`) |
-| Ubuntu 7.0.0-38-generic | Sin advertencias | No probado |
+| Kernel | Cabeceras usadas | Compilación (`make W=1`) | Carga y pruebas |
+|---|---|---|---|
+| Ubuntu 22.04, 5.15.0-202-generic | `linux-headers-5.15.0-202-generic` (kernel compilado con gcc 11.4.0) | Sin advertencias del código | No probado |
+| WSL2, 6.18.33.2-microsoft-standard-WSL2 | Árbol de fuentes de Microsoft con el `.config` de `/proc/config.gz` | Sin advertencias | Suite completa y medición (ver `results/`) |
+| Ubuntu 26.04, 7.0.0-42-generic | `linux-headers-7.0.0-42-generic` (kernel compilado con gcc 15.2.0) | Sin advertencias del código | No probado |
+
+Con las cabeceras de Ubuntu, Kbuild imprime un único aviso, `the compiler differs from the one used to build the kernel`, porque el módulo se compiló con el gcc de Ubuntu 26.04 y no con el binario que compiló ese kernel. No es una advertencia del código del módulo.
 
 ### Comandos del Makefile
 

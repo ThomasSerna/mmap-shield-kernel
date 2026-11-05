@@ -11,6 +11,7 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,9 @@
 #include <sys/resource.h>
 #include <time.h>
 #include <unistd.h>
+
+/* Default fault-around window (/sys/kernel/debug/fault_around_bytes) */
+#define FAULT_AROUND_BYTES (64 * 1024)
 
 static double now_ns(void)
 {
@@ -35,6 +39,31 @@ static void *map_or_die(size_t len, int prot, int flags, int fd)
         fprintf(stderr, "mmap fallo (prot=0x%x flags=0x%x): %s\n", prot, flags, strerror(errno));
         exit(1);
     }
+    return p;
+}
+
+/*
+ * Maps the file read-only at an address aligned to the fault-around window.
+ * Each read fault then maps a whole window, so the number of faults per
+ * mapping is constant (pages / 16). With the address chosen by ASLR it is 4 or
+ * 5 for 64 pages depending on the alignment, and the cost per fault changes
+ * with it.
+ */
+static volatile unsigned char *map_aligned_or_die(size_t len, int fd)
+{
+    size_t span = len + FAULT_AROUND_BYTES;
+    uintptr_t base = (uintptr_t)map_or_die(span, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1);
+    uintptr_t start = (base + FAULT_AROUND_BYTES - 1) & ~(uintptr_t)(FAULT_AROUND_BYTES - 1);
+    void *p = mmap((void *)start, len, PROT_READ, MAP_PRIVATE | MAP_FIXED, fd, 0);
+
+    if (p == MAP_FAILED) {
+        fprintf(stderr, "mmap MAP_FIXED fallo: %s\n", strerror(errno));
+        exit(1);
+    }
+    /* Release the parts of the reservation around the mapping */
+    if (start > base)
+        munmap((void *)base, start - base);
+    munmap((void *)(start + len), base + span - (start + len));
     return p;
 }
 
@@ -117,7 +146,7 @@ int main(int argc, char *argv[])
     unsigned long checksum = 0;
     for (long r = 0; r < fault_rounds; r++) {
         struct rusage before, after;
-        volatile unsigned char *p = map_or_die(len, PROT_READ, MAP_PRIVATE, fd);
+        volatile unsigned char *p = map_aligned_or_die(len, fd);
 
         getrusage(RUSAGE_SELF, &before);
         double t0 = now_ns();

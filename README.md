@@ -335,12 +335,14 @@ Un fallo produce un código de salida distinto de cero.
 
 `sudo make measure` ejecuta `tests/measure_overhead.sh`, que repite el mismo trabajo sin y con el módulo cargado y guarda la salida en `results/overhead-<kernel>.txt`:
 
-- **`bench_mmap`** (mediana de `REPS` ejecuciones): ns por `mmap`+`munmap` de archivo (`PROT_READ` y `PROT_READ|PROT_WRITE`) y anónimo, ns por `mprotect` (anónimo y de archivo) y ns por fallo de página.
+- **`bench_mmap`** (mediana y rango de `REPS` rondas): ns por `mmap`+`munmap` de archivo (`PROT_READ` y `PROT_READ|PROT_WRITE`) y anónimo, ns por `mprotect` (anónimo y de archivo) y ns por fallo de página.
+- **ftrace `function_graph`** (mediana y rango de `REPS` rondas): latencia media dentro del kernel de `__x64_sys_mmap`, `__x64_sys_mprotect` y `handle_mm_fault`, filtrando las líneas del proceso de prueba. El trazador solo está activo durante su propia ejecución, así que no afecta las de `bench_mmap`.
 - **`perf stat`**: fallos de página, cambios de contexto y tiempo de CPU.
 - **`strace -c`**: tiempo medio por llamada de `mmap`, `mprotect` y `munmap` (con el sobrecosto propio de `strace`).
-- **ftrace `function_graph`**: latencia media dentro del kernel de `__x64_sys_mmap`, `__x64_sys_mprotect` y `handle_mm_fault`, filtrando las líneas del proceso de prueba.
 
-Las variables `ITERATIONS` (20000), `PAGES` (64) y `REPS` (5) permiten cambiar la carga. `tests/benchmark_mmap.py` ofrece una comparación alternativa en Python:
+Las rondas de `bench_mmap` y ftrace se intercalan en orden ABBA: en las impares se mide sin módulo, se carga y se mide con módulo; en las pares, con módulo, se descarga y sin módulo. En un procesador híbrido como el Core Ultra 9 275HX, una misma ejecución puede caer en un núcleo P o E y variar 2 a 3 veces; al intercalar, esa variación afecta por igual a ambos casos y la mediana la filtra, y cada caso queda la mitad de las veces justo después de cargar o descargar el módulo. `strace` se fija a una CPU con `taskset` (`STRACE_CPU`, por defecto 0), porque si el trazador y el proceso trazado quedan en CPUs distintas el coste de despertarse entre ellas (unos 20 µs) tapa el de la llamada. Para los fallos de página, `bench_mmap` alinea el mapeo a la ventana de *fault-around* (64 KB, 16 páginas): con la dirección que elige ASLR, un mapeo de 64 páginas produce 4 o 5 fallos según su alineación, y con ello cambia el costo por fallo. Alineado, siempre son 4.
+
+Las variables `ITERATIONS` (20000), `PAGES` (64), `REPS` (10) y `STRACE_CPU` (0) permiten cambiar la carga. `tests/benchmark_mmap.py` ofrece una comparación alternativa en Python:
 
 ```bash
 python3 tests/benchmark_mmap.py baseline mmap-baseline.json   # sin el módulo

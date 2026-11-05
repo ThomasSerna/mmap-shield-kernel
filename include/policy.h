@@ -11,6 +11,9 @@
 /* Protected path entry in our policy registry */
 struct protected_path {
     char path[MMAP_SHIELD_PATH_MAX];
+    dev_t dev;              /* Device of the inode resolved when the path was added */
+    unsigned long ino;      /* Inode number resolved when the path was added */
+    bool has_inode;         /* false if the path did not exist yet (match by path only) */
     bool active;
 };
 

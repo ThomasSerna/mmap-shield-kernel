@@ -6,7 +6,8 @@
 #include <linux/personality.h>
 #include <linux/dcache.h>
 #include <linux/path.h>
-#include <linux/slab.h>
+#include <linux/namei.h>
+#include <linux/kdev_t.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
@@ -26,6 +27,25 @@ static const char * const g_default_paths[] = {
     "/tmp/shield_protected.txt" /* Honeypot test target */
 };
 
+/*
+ * Resolves the inode currently behind a path (following symlinks).
+ * Process context only: kern_path() may sleep.
+ */
+static bool resolve_path_inode(const char *path, dev_t *dev, unsigned long *ino)
+{
+    struct path p;
+    struct inode *inode;
+
+    if (kern_path(path, LOOKUP_FOLLOW, &p))
+        return false;
+
+    inode = d_backing_inode(p.dentry);
+    *dev = inode->i_sb->s_dev;
+    *ino = inode->i_ino;
+    path_put(&p);
+    return true;
+}
+
 int shield_policy_init(void)
 {
     unsigned long flags;
@@ -33,12 +53,10 @@ int shield_policy_init(void)
 
     spin_lock_irqsave(&g_paths_lock, flags);
     memset(g_protected_paths, 0, sizeof(g_protected_paths));
-
-    for (i = 0; i < ARRAY_SIZE(g_default_paths) && i < MAX_PROTECTED_PATHS; i++) {
-        strscpy(g_protected_paths[i].path, g_default_paths[i], MMAP_SHIELD_PATH_MAX);
-        g_protected_paths[i].active = true;
-    }
     spin_unlock_irqrestore(&g_paths_lock, flags);
+
+    for (i = 0; i < ARRAY_SIZE(g_default_paths) && i < MAX_PROTECTED_PATHS; i++)
+        shield_add_protected_path(g_default_paths[i]);
 
     pr_info("[%s] Motor de politicas inicializado con %zu rutas protegidas por defecto\n",
             MODULE_NAME, ARRAY_SIZE(g_default_paths));
@@ -54,26 +72,43 @@ void shield_policy_cleanup(void)
     pr_info("[%s] Motor de politicas liberado\n", MODULE_NAME);
 }
 
+/*
+ * Registers a protected path. The inode it currently points to is recorded
+ * as well, so the protection follows the file through hard links, renames
+ * and other mount points. Registering an existing path again refreshes the
+ * recorded inode (useful if the file was created or replaced afterwards).
+ */
 int shield_add_protected_path(const char *path)
 {
     unsigned long flags;
     size_t i;
     int slot = -1;
+    dev_t dev = 0;
+    unsigned long ino = 0;
+    bool has_inode;
 
     if (!path || path[0] != '/')
         return -EINVAL;
     if (strlen(path) >= MMAP_SHIELD_PATH_MAX)
         return -ENAMETOOLONG;
 
+    /* Resolved before taking the spinlock: path lookup may sleep */
+    has_inode = resolve_path_inode(path, &dev, &ino);
+
     spin_lock_irqsave(&g_paths_lock, flags);
 
     /* Check if already present */
     for (i = 0; i < MAX_PROTECTED_PATHS; i++) {
-        if (g_protected_paths[i].active && strcmp(g_protected_paths[i].path, path) == 0) {
+        struct protected_path *entry = &g_protected_paths[i];
+
+        if (entry->active && strcmp(entry->path, path) == 0) {
+            entry->dev = dev;
+            entry->ino = ino;
+            entry->has_inode = has_inode;
             spin_unlock_irqrestore(&g_paths_lock, flags);
-            return 0; /* Already registered */
+            return 0; /* Already registered: inode refreshed */
         }
-        if (!g_protected_paths[i].active && slot == -1) {
+        if (!entry->active && slot == -1) {
             slot = (int)i;
         }
     }
@@ -84,10 +119,18 @@ int shield_add_protected_path(const char *path)
     }
 
     strscpy(g_protected_paths[slot].path, path, MMAP_SHIELD_PATH_MAX);
+    g_protected_paths[slot].dev = dev;
+    g_protected_paths[slot].ino = ino;
+    g_protected_paths[slot].has_inode = has_inode;
     g_protected_paths[slot].active = true;
 
     spin_unlock_irqrestore(&g_paths_lock, flags);
-    pr_info("[%s] Ruta protegida anadida: %s\n", MODULE_NAME, path);
+    if (has_inode)
+        pr_info("[%s] Ruta protegida anadida: %s (inodo %lu, dev %u:%u)\n",
+                MODULE_NAME, path, ino, MAJOR(dev), MINOR(dev));
+    else
+        pr_info("[%s] Ruta protegida anadida: %s (aun no existe, proteccion por ruta)\n",
+                MODULE_NAME, path);
     return 0;
 }
 
@@ -103,8 +146,7 @@ int shield_del_protected_path(const char *path)
     spin_lock_irqsave(&g_paths_lock, flags);
     for (i = 0; i < MAX_PROTECTED_PATHS; i++) {
         if (g_protected_paths[i].active && strcmp(g_protected_paths[i].path, path) == 0) {
-            g_protected_paths[i].active = false;
-            g_protected_paths[i].path[0] = '\0';
+            memset(&g_protected_paths[i], 0, sizeof(g_protected_paths[i]));
             found = true;
             break;
         }
@@ -128,31 +170,74 @@ void shield_list_protected_paths_seq(struct seq_file *m)
 
     spin_lock_irqsave(&g_paths_lock, flags);
     for (i = 0; i < MAX_PROTECTED_PATHS; i++) {
-        if (g_protected_paths[i].active) {
-            seq_printf(m, "  - %s\n", g_protected_paths[i].path);
-        }
+        const struct protected_path *entry = &g_protected_paths[i];
+
+        if (!entry->active)
+            continue;
+        if (entry->has_inode)
+            seq_printf(m, "  - %s [inodo %lu, dev %u:%u]\n", entry->path, entry->ino,
+                       MAJOR(entry->dev), MINOR(entry->dev));
+        else
+            seq_printf(m, "  - %s [sin inodo: proteccion por ruta]\n", entry->path);
     }
     spin_unlock_irqrestore(&g_paths_lock, flags);
 }
 
-static bool is_path_protected(const char *file_path)
+/*
+ * A file is protected when its inode is the one recorded for an entry
+ * (covers hard links, renames, bind mounts and other mount namespaces) or
+ * when its current path equals a registered path (covers files created or
+ * replaced after registration, e.g. /etc/passwd rewritten by passwd(1)).
+ */
+static bool is_file_protected(struct file *file, const char *file_path)
 {
+    struct inode *inode = file_inode(file);
+    dev_t dev = inode->i_sb->s_dev;
+    unsigned long ino = inode->i_ino;
     unsigned long flags;
     size_t i;
     bool match = false;
 
-    if (!file_path)
-        return false;
-
     spin_lock_irqsave(&g_paths_lock, flags);
     for (i = 0; i < MAX_PROTECTED_PATHS; i++) {
-        if (g_protected_paths[i].active && strcmp(g_protected_paths[i].path, file_path) == 0) {
+        const struct protected_path *entry = &g_protected_paths[i];
+
+        if (!entry->active)
+            continue;
+        if ((entry->has_inode && entry->dev == dev && entry->ino == ino) ||
+            (file_path && strcmp(entry->path, file_path) == 0)) {
             match = true;
             break;
         }
     }
     spin_unlock_irqrestore(&g_paths_lock, flags);
     return match;
+}
+
+/*
+ * Path of the file behind a request, resolved at most once and only when
+ * needed. Uses a fixed buffer on the stack: no allocation can fail here, so
+ * the inode check above never depends on the path being available.
+ */
+struct shield_path_cache {
+    char buf[MMAP_SHIELD_PATH_MAX];
+    const char *str;
+    bool done;
+};
+
+static const char *shield_req_path(struct file *file, struct shield_path_cache *pc)
+{
+    if (!pc->done) {
+        pc->done = true;
+        pc->str = file ? "<ruta no resuelta>" : "<anonymous>";
+        if (file) {
+            char *p = d_path(&file->f_path, pc->buf, sizeof(pc->buf));
+
+            if (!IS_ERR(p))
+                pc->str = p;
+        }
+    }
+    return pc->str;
 }
 
 /* Request under evaluation, normalized for both interception points. */
@@ -216,30 +301,17 @@ static bool shield_evaluate(const struct shield_request *req)
 {
     struct file *file = req->file;
     unsigned long prot = req->prot;
-    char *path_buf = NULL;
-    char *resolved_path = NULL;
-    char path_str[MMAP_SHIELD_PATH_MAX] = "<anon>";
+    struct shield_path_cache pc = { .done = false };
     kuid_t uid = current_uid();
     pid_t pid = current->pid;
     pid_t tgid = current->tgid;
     bool is_root = uid_eq(uid, GLOBAL_ROOT_UID);
+    bool protected_file = false;
     shield_action_t verdict = SHIELD_ACTION_ALLOW;
 
     atomic64_inc(&g_shield_stats.total_intercepted);
     if (req->origin == SHIELD_ORIGIN_MPROTECT)
         atomic64_inc(&g_shield_stats.mprotect_intercepted);
-
-    /* Resolve file path if file pointer is present */
-    if (file && file->f_path.dentry) {
-        path_buf = kmalloc(PAGE_SIZE, GFP_ATOMIC);
-        if (path_buf) {
-            resolved_path = d_path(&file->f_path, path_buf, PAGE_SIZE);
-            if (!IS_ERR(resolved_path)) {
-                strscpy(path_str, resolved_path, sizeof(path_str));
-            }
-            kfree(path_buf);
-        }
-    }
 
     /* 1. Policy W^X (Write XOR Execute) on the effective protection */
     if (g_shield_config.block_wx && (prot & PROT_WRITE) && (prot & PROT_EXEC)) {
@@ -263,6 +335,11 @@ static bool shield_evaluate(const struct shield_request *req)
         goto decide;
     }
 
+    /* Rules 2 and 3 only concern writable views of protected files */
+    if (file && (prot & PROT_WRITE) &&
+        (g_shield_config.block_dirty_cow || g_shield_config.block_sensitive))
+        protected_file = is_file_protected(file, shield_req_path(file, &pc));
+
     /*
      * 2. Policy: Dirty COW (CVE-2016-5195) Precursor Detection
      * The Dirty COW exploit relies on:
@@ -277,16 +354,15 @@ static bool shield_evaluate(const struct shield_request *req)
      * Evaluated before the sensitive-file rule so the precursor is classified
      * as DIRTY_COW instead of a generic sensitive-file violation.
      *
-     * Restricted to protected paths: the dynamic loader (ld.so) and execve()
+     * Restricted to protected files: the dynamic loader (ld.so) and execve()
      * map the .data segment of every binary/library exactly this way
      * (O_RDONLY + MAP_PRIVATE | PROT_WRITE), so a global rule would prevent
      * any dynamically linked program from starting.
      */
-    if (g_shield_config.block_dirty_cow && file) {
+    if (g_shield_config.block_dirty_cow && protected_file) {
         bool file_opened_ro = !(file->f_mode & FMODE_WRITE);
-        bool req_private_write = !req->shared && (prot & PROT_WRITE);
 
-        if (file_opened_ro && req_private_write && is_path_protected(path_str)) {
+        if (file_opened_ro && !req->shared) {
             verdict = SHIELD_BLOCK_DIRTY_COW;
             atomic64_inc(&g_shield_stats.dirty_cow_detections);
             goto decide;
@@ -294,13 +370,11 @@ static bool shield_evaluate(const struct shield_request *req)
     }
 
     /* 3. Policy: Sensitive System Files Protection */
-    if (g_shield_config.block_sensitive && file && is_path_protected(path_str)) {
+    if (g_shield_config.block_sensitive && protected_file && !is_root) {
         /* Non-root process attempting write mapping on sensitive system file */
-        if (!is_root && (prot & PROT_WRITE)) {
-            verdict = SHIELD_BLOCK_SENSITIVE_FILE;
-            atomic64_inc(&g_shield_stats.sensitive_violations);
-            goto decide;
-        }
+        verdict = SHIELD_BLOCK_SENSITIVE_FILE;
+        atomic64_inc(&g_shield_stats.sensitive_violations);
+        goto decide;
     }
 
     /* 4. Policy: Unauthorized Shared Write */
@@ -322,19 +396,19 @@ decide:
         pr_warn_ratelimited("[%s] ALERTA DE SEGURIDAD: PID=%d (%s) UID=%u Origen=%s Path=%s Prot=0x%lx Flags=0x%lx Accion=%s [%s]\n",
                             MODULE_NAME, pid, current->comm, from_kuid(&init_user_ns, uid),
                             req->origin == SHIELD_ORIGIN_MPROTECT ? "mprotect" : "mmap",
-                            path_str, prot, req->flags, verdict_to_log(verdict),
+                            shield_req_path(file, &pc), prot, req->flags, verdict_to_log(verdict),
                             enforced ? "BLOQUEADO" : "PERMISIVO");
 
-        shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, req->flags,
-                         verdict, req->origin, enforced);
+        shield_audit_log(pid, tgid, uid, current->comm, shield_req_path(file, &pc), prot,
+                         req->flags, verdict, req->origin, enforced);
         return enforced;
     }
 
     atomic64_inc(&g_shield_stats.total_allowed);
 
     if (g_shield_config.audit_all) {
-        shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, req->flags,
-                         SHIELD_ACTION_ALLOW, req->origin, 0);
+        shield_audit_log(pid, tgid, uid, current->comm, shield_req_path(file, &pc), prot,
+                         req->flags, SHIELD_ACTION_ALLOW, req->origin, 0);
     }
 
     return false;

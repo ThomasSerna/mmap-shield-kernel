@@ -1,40 +1,483 @@
-[  420.277164] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
-[  420.277166] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
-[  420.277183] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
-[  420.277188] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
-[  420.277192] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
-[  420.277195] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
-[  420.277207] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
-[  420.277208] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
-[  420.277217] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
-[  420.345934] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
-[  420.413176] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
-[  420.413182] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
-[  420.413185] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
-[  420.417257] [mmap_shield] Descargando modulo mmap-shield...
-[  420.815195] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
-[  421.097443] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
-[  421.128219] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
-[  421.128236] [mmap_shield] Entrada /proc/mmap_shield eliminada
-[  421.128240] [mmap_shield] Motor de politicas liberado
-[  421.128242] [mmap_shield] Modulo descargado correctamente. Total interceptados: 33512, Bloqueados: 0
-[  421.211393] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
-[  421.211395] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
-[  421.211412] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
-[  421.211417] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
-[  421.211421] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
-[  421.211424] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
-[  421.211436] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
-[  421.211437] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
-[  421.211445] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
-[  421.278427] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
-[  421.342743] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
-[  421.342756] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
-[  421.342758] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
-[  428.899462] [mmap_shield] Descargando modulo mmap-shield...
-[  428.953495] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
-[  429.090245] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
-[  429.104305] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
-[  429.104316] [mmap_shield] Entrada /proc/mmap_shield eliminada
-[  429.104319] [mmap_shield] Motor de politicas liberado
-[  429.104321] [mmap_shield] Modulo descargado correctamente. Total interceptados: 1195660, Bloqueados: 0
+[  265.745336] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  265.745338] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  265.745352] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  265.745357] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  265.745361] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  265.745365] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  265.745373] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  265.745375] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  265.745389] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  265.815600] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  265.881332] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  265.881338] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  265.881339] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  265.882541] [mmap_shield] Ruta protegida anadida: /tmp/mmap-shield-test-0qv98M/protected (inodo 65, dev 0:71)
+[  265.893202] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=<anonymous> Prot=0x7 Flags=0x22 Accion=BLOQUEO_W^X [BLOQUEADO]
+[  265.893228] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/protected Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  265.893237] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/protected Prot=0x3 Flags=0x2 Accion=DETECCION_DIRTY_COW [BLOQUEADO]
+[  265.893244] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/benign Prot=0x3 Flags=0x1 Accion=BLOQUEO_MAP_SHARED [BLOQUEADO]
+[  265.893253] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mprotect Path=<anonymous> Prot=0x7 Flags=0x2 Accion=BLOQUEO_W^X [BLOQUEADO]
+[  265.893262] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=<anonymous> Prot=0x7 Flags=0x22 Accion=BLOQUEO_W^X [BLOQUEADO]
+[  265.893278] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=/memfd:mmap-shield-alias (deleted) Prot=0x5 Flags=0x1 Accion=BLOQUEO_ALIAS_W^X [BLOQUEADO]
+[  265.893285] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=/memfd:mmap-shield-alias (deleted) Prot=0x5 Flags=0x1 Accion=BLOQUEO_ALIAS_W^X [BLOQUEADO]
+[  265.893301] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mprotect Path=/tmp/mmap-shield-test-0qv98M/protected Prot=0x3 Flags=0x2 Accion=DETECCION_DIRTY_COW [BLOQUEADO]
+[  265.893321] [mmap_shield] ALERTA DE SEGURIDAD: PID=4746 (test_runner) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/alias Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  266.008964] [mmap_shield] Ruta protegida anadida: /tmp/mmap-shield-test-0qv98M/root_protected (inodo 66, dev 0:71)
+[  266.009009] [mmap_shield] Ruta protegida anadida: /tmp/mmap-shield-test-0qv98M/victim (inodo 67, dev 0:71)
+[  270.895052] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/decoy Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895063] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/victim Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895068] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/victim Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895083] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/victim Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895088] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/decoy Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895097] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/victim Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895101] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/decoy Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895115] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/decoy Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895119] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/decoy Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  270.895141] [mmap_shield] ALERTA DE SEGURIDAD: PID=4772 (race_attacks) UID=1000 Origen=mmap Path=/tmp/mmap-shield-test-0qv98M/victim Prot=0x3 Flags=0x1 Accion=BLOQUEO_ARCHIVO_SENSIBLE [BLOQUEADO]
+[  272.041837] [mmap_shield] Descargando modulo mmap-shield...
+[  272.228084] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  272.484459] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  272.507126] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  272.507139] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  272.507143] [mmap_shield] Motor de politicas liberado
+[  272.507144] [mmap_shield] Modulo descargado correctamente. Total interceptados: 633785, Bloqueados: 417514
+[  272.578120] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  272.578122] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  272.578136] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  272.578141] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  272.578145] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  272.578149] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  272.578160] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  272.578161] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  272.578170] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  272.645838] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  272.711057] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  272.711066] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  272.711068] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  272.715162] [mmap_shield] Descargando modulo mmap-shield...
+[  272.912698] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  273.296566] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  273.327000] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  273.327016] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  273.327020] [mmap_shield] Motor de politicas liberado
+[  273.327021] [mmap_shield] Modulo descargado correctamente. Total interceptados: 11888, Bloqueados: 0
+[  273.422348] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  273.422351] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  273.422366] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  273.422371] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  273.422375] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  273.422378] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  273.422390] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  273.422391] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  273.422399] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  273.485334] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  273.549539] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  273.549552] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  273.549554] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  273.555146] [mmap_shield] Descargando modulo mmap-shield...
+[  273.765649] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  274.028588] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  274.063014] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  274.063030] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  274.063034] [mmap_shield] Motor de politicas liberado
+[  274.063035] [mmap_shield] Modulo descargado correctamente. Total interceptados: 12816, Bloqueados: 0
+[  274.130505] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  274.130507] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  274.130520] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  274.130526] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  274.130530] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  274.130533] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  274.130546] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  274.130547] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  274.130556] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  274.193655] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  274.250204] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  274.250209] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  274.250211] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  274.253314] [mmap_shield] Descargando modulo mmap-shield...
+[  274.444720] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  274.744345] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  274.771038] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  274.771055] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  274.771059] [mmap_shield] Motor de politicas liberado
+[  274.771060] [mmap_shield] Modulo descargado correctamente. Total interceptados: 11152, Bloqueados: 0
+[  274.851667] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  274.851670] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  274.851693] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  274.851705] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  274.851709] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  274.851716] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  274.851735] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  274.851737] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  274.851751] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  274.928245] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  275.008135] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  275.008144] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  275.008146] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  275.011974] [mmap_shield] Descargando modulo mmap-shield...
+[  275.312560] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  275.588156] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  275.611019] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  275.611035] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  275.611038] [mmap_shield] Motor de politicas liberado
+[  275.611039] [mmap_shield] Modulo descargado correctamente. Total interceptados: 17381, Bloqueados: 0
+[  275.685722] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  275.685729] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  275.685742] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  275.685748] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  275.685752] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  275.685755] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  275.685769] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  275.685770] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  275.685782] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  275.768497] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  275.847778] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  275.847783] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  275.847790] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  275.851862] [mmap_shield] Descargando modulo mmap-shield...
+[  276.060457] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  276.324528] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  276.359022] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  276.359039] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  276.359043] [mmap_shield] Motor de politicas liberado
+[  276.359044] [mmap_shield] Modulo descargado correctamente. Total interceptados: 13744, Bloqueados: 0
+[  276.464777] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  276.464779] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  276.464794] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  276.464800] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  276.464804] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  276.464807] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  276.464818] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  276.464820] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  276.464833] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  276.527234] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  276.587822] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  276.587829] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  276.587831] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  276.591975] [mmap_shield] Descargando modulo mmap-shield...
+[  276.833195] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  277.192147] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  277.227020] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  277.227037] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  277.227041] [mmap_shield] Motor de politicas liberado
+[  277.227043] [mmap_shield] Modulo descargado correctamente. Total interceptados: 14215, Bloqueados: 0
+[  277.331774] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  277.331779] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  277.331792] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  277.331797] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  277.331806] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  277.331809] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  277.331825] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  277.331828] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  277.331838] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  277.410694] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  277.481017] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  277.481028] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  277.481030] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  277.484369] [mmap_shield] Descargando modulo mmap-shield...
+[  277.772906] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  278.036593] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  278.071217] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  278.071233] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  278.071237] [mmap_shield] Motor de politicas liberado
+[  278.071238] [mmap_shield] Modulo descargado correctamente. Total interceptados: 16600, Bloqueados: 0
+[  278.132812] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  278.132814] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  278.132829] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  278.132834] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  278.132838] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  278.132841] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  278.132853] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  278.132854] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  278.132863] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  278.195060] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  278.255071] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  278.255076] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  278.255078] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  278.258864] [mmap_shield] Descargando modulo mmap-shield...
+[  278.463966] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  278.728339] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  278.739329] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  278.739343] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  278.739346] [mmap_shield] Motor de politicas liberado
+[  278.739348] [mmap_shield] Modulo descargado correctamente. Total interceptados: 13250, Bloqueados: 0
+[  278.833237] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  278.833241] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  278.833258] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  278.833269] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  278.833278] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  278.833281] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  278.833299] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  278.833301] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  278.833314] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  278.916854] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  278.996409] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  278.996423] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  278.996425] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  279.002052] [mmap_shield] Descargando modulo mmap-shield...
+[  279.319010] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  279.562337] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  279.615030] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  279.615045] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  279.615049] [mmap_shield] Motor de politicas liberado
+[  279.615050] [mmap_shield] Modulo descargado correctamente. Total interceptados: 18772, Bloqueados: 0
+[  279.716599] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  279.716601] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  279.716610] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  279.716614] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  279.716618] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  279.716621] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  279.716630] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  279.716631] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  279.716638] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  279.774531] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  279.832001] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  279.832007] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  279.832009] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  287.070218] [mmap_shield] Descargando modulo mmap-shield...
+[  287.166746] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  287.280902] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  287.299233] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  287.299259] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  287.299263] [mmap_shield] Motor de politicas liberado
+[  287.299265] [mmap_shield] Modulo descargado correctamente. Total interceptados: 618058, Bloqueados: 0
+[  289.295182] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  289.295184] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  289.295198] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  289.295204] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  289.295208] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  289.295212] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  289.295223] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  289.295224] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  289.295233] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  289.367291] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  289.432439] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  289.432448] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  289.432450] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  290.296781] [mmap_shield] Descargando modulo mmap-shield...
+[  290.360812] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  290.488420] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  290.503170] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  290.503184] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  290.503187] [mmap_shield] Motor de politicas liberado
+[  290.503189] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  291.401824] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  291.401826] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  291.401839] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  291.401844] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  291.401848] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  291.401851] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  291.401862] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  291.401864] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  291.401871] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  291.468723] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  291.536258] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  291.536264] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  291.536266] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  292.372539] [mmap_shield] Descargando modulo mmap-shield...
+[  292.424715] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  292.562297] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  292.575358] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  292.575376] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  292.575380] [mmap_shield] Motor de politicas liberado
+[  292.575382] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  293.473465] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  293.473467] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  293.473481] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  293.473488] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  293.473492] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  293.473496] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  293.473507] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  293.473509] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  293.473518] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  293.542314] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  293.608397] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  293.608404] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  293.608406] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  294.435983] [mmap_shield] Descargando modulo mmap-shield...
+[  294.501271] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  294.639356] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  294.659007] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  294.659023] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  294.659027] [mmap_shield] Motor de politicas liberado
+[  294.659028] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  295.605863] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  295.605865] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  295.605876] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  295.605881] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  295.605885] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  295.605888] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  295.605898] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  295.605899] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  295.605910] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  295.673416] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  295.739855] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  295.739862] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  295.739864] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  296.569691] [mmap_shield] Descargando modulo mmap-shield...
+[  296.624836] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  296.773059] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  296.787225] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  296.787242] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  296.787245] [mmap_shield] Motor de politicas liberado
+[  296.787247] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  297.701469] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  297.701472] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  297.701484] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  297.701489] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  297.701493] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  297.701496] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  297.701506] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  297.701507] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  297.701514] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  297.769137] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  297.828104] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  297.828114] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  297.828116] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  298.623706] [mmap_shield] Descargando modulo mmap-shield...
+[  298.685248] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  298.820163] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  298.843019] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  298.843032] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  298.843035] [mmap_shield] Motor de politicas liberado
+[  298.843036] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  300.868024] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  300.868026] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  300.868041] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  300.868047] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  300.868051] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  300.868055] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  300.868065] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  300.868066] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  300.868074] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  300.932815] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  300.995307] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  300.995313] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  300.995315] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  302.884458] [mmap_shield] Descargando modulo mmap-shield...
+[  302.965392] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  303.089957] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  303.103422] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  303.103436] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  303.103440] [mmap_shield] Motor de politicas liberado
+[  303.103442] [mmap_shield] Modulo descargado correctamente. Total interceptados: 721317, Bloqueados: 0
+[  305.305167] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  305.305169] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  305.305179] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  305.305184] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  305.305188] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  305.305191] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  305.305200] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  305.305201] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  305.305209] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  305.374584] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  305.440607] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  305.440614] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  305.440616] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  306.293464] [mmap_shield] Descargando modulo mmap-shield...
+[  306.346570] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  306.480834] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  306.495152] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  306.495175] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  306.495179] [mmap_shield] Motor de politicas liberado
+[  306.495180] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  307.434422] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  307.434425] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  307.434439] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  307.434445] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  307.434450] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  307.434453] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  307.434465] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  307.434467] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  307.434475] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  307.500829] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  307.565877] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  307.565883] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  307.565886] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  308.452582] [mmap_shield] Descargando modulo mmap-shield...
+[  308.520735] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  308.657346] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  308.671199] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  308.671212] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  308.671215] [mmap_shield] Motor de politicas liberado
+[  308.671217] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  309.611077] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  309.611080] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  309.611095] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  309.611101] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  309.611105] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  309.611109] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  309.611122] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  309.611124] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  309.611133] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  309.682658] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  309.750745] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  309.750751] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  309.750752] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  310.634841] [mmap_shield] Descargando modulo mmap-shield...
+[  310.701509] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  310.847617] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  310.863281] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  310.863407] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  310.863413] [mmap_shield] Motor de politicas liberado
+[  310.863415] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  311.740651] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  311.740653] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  311.740669] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  311.740675] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  311.740680] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  311.740683] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  311.740695] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  311.740697] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  311.740706] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  311.807942] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  311.872203] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  311.872210] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  311.872212] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  312.688166] [mmap_shield] Descargando modulo mmap-shield...
+[  312.746505] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  312.885195] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  312.899521] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  312.899547] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  312.899551] [mmap_shield] Motor de politicas liberado
+[  312.899553] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  313.832700] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  313.832702] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  313.832716] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  313.832722] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  313.832727] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  313.832730] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  313.832744] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  313.832745] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  313.832755] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  313.904020] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  313.972646] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  313.972653] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  313.972655] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  314.813517] [mmap_shield] Descargando modulo mmap-shield...
+[  314.880769] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  315.007530] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  315.023019] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  315.023036] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  315.023041] [mmap_shield] Motor de politicas liberado
+[  315.023042] [mmap_shield] Modulo descargado correctamente. Total interceptados: 149330, Bloqueados: 0
+[  317.101607] [mmap_shield] Iniciando modulo de seguridad mmap-shield v1.0.0
+[  317.101609] [mmap_shield] Kernel target: 6.18.33.2-microsoft-standard-WSL2
+[  317.101618] [mmap_shield] Ruta protegida anadida: /etc/shadow (inodo 56616, dev 8:48)
+[  317.101623] [mmap_shield] Ruta protegida anadida: /etc/passwd (inodo 44906, dev 8:48)
+[  317.101627] [mmap_shield] Ruta protegida anadida: /etc/sudoers (inodo 1281, dev 8:48)
+[  317.101629] [mmap_shield] Ruta protegida anadida: /etc/ld.so.preload (aun no existe, proteccion por ruta)
+[  317.101638] [mmap_shield] Ruta protegida anadida: /tmp/shield_protected.txt (aun no existe, proteccion por ruta)
+[  317.101638] [mmap_shield] Motor de politicas inicializado con 5 rutas protegidas por defecto
+[  317.101644] [mmap_shield] Entrada /proc/mmap_shield creada exitosamente
+[  317.165482] [mmap_shield] Hook ftrace activado para 'security_mmap_file'
+[  317.227421] [mmap_shield] Hook ftrace activado para 'security_file_mprotect'
+[  317.227427] [mmap_shield] Motor de intercepcion ftrace inicializado correctamente
+[  317.227429] [mmap_shield] Modulo cargado con exito. Modo: ENFORCING | W^X: ACTIVO | DirtyCOW: ACTIVO
+[  319.190023] [mmap_shield] Descargando modulo mmap-shield...
+[  319.249111] [mmap_shield] Hook ftrace desactivado para 'security_mmap_file'
+[  319.402505] [mmap_shield] Hook ftrace desactivado para 'security_file_mprotect'
+[  319.415216] [mmap_shield] Motor de intercepcion ftrace descargado y sincronizado
+[  319.415231] [mmap_shield] Entrada /proc/mmap_shield eliminada
+[  319.415234] [mmap_shield] Motor de politicas liberado
+[  319.415235] [mmap_shield] Modulo descargado correctamente. Total interceptados: 721317, Bloqueados: 0

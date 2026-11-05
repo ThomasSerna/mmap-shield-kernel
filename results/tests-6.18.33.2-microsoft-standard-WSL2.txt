@@ -1,10 +1,10 @@
-make: Entering directory '/home/jepalaciob/kbuild/mmap-shield-run'
+make: Entering directory '/home/jepalaciob/kbuild/mmap-shield-final'
 ==> Compilando suite de pruebas de espacio de usuario...
 gcc -O2 -Wall -Wextra tests/test_runner.c -o tests/test_runner
 gcc -O2 -Wall -Wextra -pthread tests/race_attacks.c -o tests/race_attacks
 gcc -O2 -Wall -Wextra tests/bench_mmap.c -o tests/bench_mmap
 ==> Binarios de pruebas generados: tests/test_runner tests/race_attacks tests/bench_mmap
-make: Leaving directory '/home/jepalaciob/kbuild/mmap-shield-run'
+make: Leaving directory '/home/jepalaciob/kbuild/mmap-shield-final'
 ==> Fase 1: pruebas funcionales y de evasion como 'jepalaciob'
 
 ======================================================================
@@ -13,7 +13,7 @@ make: Leaving directory '/home/jepalaciob/kbuild/mmap-shield-run'
 
 [*] TEST 1: Mapeo de memoria legitimo (Lectura regular)... [PASO (PERMITIDO)]
 [*] TEST 2: Violacion de politica W^X (PROT_WRITE | PROT_EXEC)... [PASO (BLOQUEADO CORRECTAMENTE: Permission denied)]
-[*] TEST 3: Acceso no autorizado a archivo sensible (/tmp/mmap-shield-test-DuB9nB/protected)... [PASO (BLOQUEADO CORRECTAMENTE: Permission denied)]
+[*] TEST 3: Acceso no autorizado a archivo sensible (/tmp/mmap-shield-test-0qv98M/protected)... [PASO (BLOQUEADO CORRECTAMENTE: Permission denied)]
 [*] TEST 4: Simulacion de vector precursor Dirty COW (RO + MAP_PRIVATE|PROT_WRITE)... [PASO (BLOQUEADO PREVENTIVAMENTE: Permission denied)]
 [*] TEST 5: MAP_SHARED | PROT_WRITE con descriptor O_RDONLY... [PASO (RECHAZADO CORRECTAMENTE: Permission denied)]
 [*] TEST 6: Evasion W^X con mprotect (RW -> RWX)... [PASO (BLOQUEADO CORRECTAMENTE: Permission denied)]
@@ -55,22 +55,22 @@ Auditoria Total (Benign): [DESHABILITADO]
   - /etc/sudoers [inodo 1281, dev 8:48]
   - /etc/ld.so.preload [sin inodo: proteccion por ruta]
   - /tmp/shield_protected.txt [sin inodo: proteccion por ruta]
-  - /tmp/mmap-shield-test-DuB9nB/protected [inodo 80, dev 0:71]
+  - /tmp/mmap-shield-test-0qv98M/protected [inodo 65, dev 0:71]
 
 --- Registro Circular de Auditoria de Seguridad (Ultimos Eventos) ---
 TIMESTAMP    PID    TGID   UID    COMANDO          ORIGEN   VERDICTO         ENF  PROT   FLAGS  RUTA
 --------------------------------------------------------------------------------------------------------------------------
-[1793908695] 6360   6360   1000   test_runner      MMAP     BLOQUEO_W^X      SI   0x0007 0x0022 <anonymous>
-[1793908695] 6360   6360   1000   test_runner      MMAP     BLOQUEO_SENS     SI   0x0003 0x0001 /tmp/mmap-shield-test-DuB9nB/protected
-[1793908695] 6360   6360   1000   test_runner      MMAP     DIRTY_COW        SI   0x0003 0x0002 /tmp/mmap-shield-test-DuB9nB/protected
-[1793908695] 6360   6360   1000   test_runner      MMAP     BLOQUEO_SHARED   SI   0x0003 0x0001 /tmp/mmap-shield-test-DuB9nB/benign
-[1793908695] 6360   6360   1000   test_runner      MPROTECT BLOQUEO_W^X      SI   0x0007 0x0002 <anonymous>
-[1793908695] 6360   6360   1000   test_runner      MMAP     BLOQUEO_W^X      SI   0x0007 0x0022 <anonymous>
-[1793908695] 6360   6360   1000   test_runner      MMAP     BLOQUEO_ALIAS_WX SI   0x0005 0x0001 /memfd:mmap-shield-alias (deleted)
-[1793908695] 6360   6360   1000   test_runner      MMAP     BLOQUEO_ALIAS_WX SI   0x0005 0x0001 /memfd:mmap-shield-alias (deleted)
-[1793908695] 6360   6360   1000   test_runner      MPROTECT DIRTY_COW        SI   0x0003 0x0002 /tmp/mmap-shield-test-DuB9nB/protected
-[1793908695] 6360   6360   1000   test_runner      MMAP     BLOQUEO_SENS     SI   0x0003 0x0001 /tmp/mmap-shield-test-DuB9nB/alias
-[1793908695] 6360   6360   1000   test_runner      MPROTECT BLOQUEO_SENS     SI   0x0003 0x0001 /tmp/mmap-shield-test-DuB9nB/protected
+[1793910871] 4746   4746   1000   test_runner      MMAP     BLOQUEO_W^X      SI   0x0007 0x0022 <anonymous>
+[1793910871] 4746   4746   1000   test_runner      MMAP     BLOQUEO_SENS     SI   0x0003 0x0001 /tmp/mmap-shield-test-0qv98M/protected
+[1793910871] 4746   4746   1000   test_runner      MMAP     DIRTY_COW        SI   0x0003 0x0002 /tmp/mmap-shield-test-0qv98M/protected
+[1793910871] 4746   4746   1000   test_runner      MMAP     BLOQUEO_SHARED   SI   0x0003 0x0001 /tmp/mmap-shield-test-0qv98M/benign
+[1793910871] 4746   4746   1000   test_runner      MPROTECT BLOQUEO_W^X      SI   0x0007 0x0002 <anonymous>
+[1793910871] 4746   4746   1000   test_runner      MMAP     BLOQUEO_W^X      SI   0x0007 0x0022 <anonymous>
+[1793910871] 4746   4746   1000   test_runner      MMAP     BLOQUEO_ALIAS_WX SI   0x0005 0x0001 /memfd:mmap-shield-alias (deleted)
+[1793910871] 4746   4746   1000   test_runner      MMAP     BLOQUEO_ALIAS_WX SI   0x0005 0x0001 /memfd:mmap-shield-alias (deleted)
+[1793910871] 4746   4746   1000   test_runner      MPROTECT DIRTY_COW        SI   0x0003 0x0002 /tmp/mmap-shield-test-0qv98M/protected
+[1793910871] 4746   4746   1000   test_runner      MMAP     BLOQUEO_SENS     SI   0x0003 0x0001 /tmp/mmap-shield-test-0qv98M/alias
+[1793910871] 4746   4746   1000   test_runner      MPROTECT BLOQUEO_SENS     SI   0x0003 0x0001 /tmp/mmap-shield-test-0qv98M/protected
 ================================================================================
 ==> Fase 2: uso normal del sistema con el modulo cargado (falsos positivos)
   [OK] ls /
@@ -85,21 +85,21 @@ TIMESTAMP    PID    TGID   UID    COMANDO          ORIGEN   VERDICTO         ENF
    mmap-shield: Simulacion de Ataques de Carrera (uid=1000)
 ======================================================================
 
-[*] CARRERA 1: Dirty COW (madvise + mprotect + /proc/self/mem sobre /tmp/mmap-shield-test-DuB9nB/root_protected)...
-    madvise: 2902995 | intentos mprotect(PROT_WRITE): 41849 (concedidos: 0) | escrituras /proc/self/mem: 161189
+[*] CARRERA 1: Dirty COW (madvise + mprotect + /proc/self/mem sobre /tmp/mmap-shield-test-0qv98M/root_protected)...
+    madvise: 2953838 | intentos mprotect(PROT_WRITE): 39816 (concedidos: 0) | escrituras /proc/self/mem: 161575
     Archivo en disco/page cache: intacto
     [PASO] Ningun mprotect concedido y archivo intacto (las escrituras de /proc/self/mem solo tocan la copia privada)
 [*] CARRERA 2: TOCTOU por intercambio de nombres (renameat2 RENAME_EXCHANGE)...
-    Intercambios: 1187435 | aperturas del inodo protegido bajo otro nombre: 205202 | mapeos escribibles obtenidos sobre el: 0
-    Archivo benigno: 194733 mapeos permitidos, 193860 rechazados (el nombre protegido apuntaba a el en ese instante)
+    Intercambios: 1128433 | aperturas del inodo protegido bajo otro nombre: 171870 | mapeos escribibles obtenidos sobre el: 0
+    Archivo benigno: 200855 mapeos permitidos, 205817 rechazados (el nombre protegido apuntaba a el en ese instante)
     [PASO] La proteccion sigue al inodo: ningun mapeo escribible del archivo protegido
 
  Resumen de Carreras: 2 de 2 superadas con exito
 
-  Accesos sensibles bloqueados:     399065
-  Patrones Dirty COW detectados:    41851
+  Accesos sensibles bloqueados:     377690
+  Patrones Dirty COW detectados:    39818
 ==> Fase 4: descarga y recarga del modulo con llamadas mmap/mprotect en curso
-    Carga completada: 568776 iteraciones de mmap/mprotect/munmap en 15 s
+    Carga completada: 337693 iteraciones de mmap/mprotect/munmap en 15 s
   10 ciclos rmmod/insmod completados con carga concurrente.
 ==> Verificacion de mensajes del kernel
   Sin errores del kernel (Missing ENDBR, BUG, Oops) desde el inicio de las pruebas.

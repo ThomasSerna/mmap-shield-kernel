@@ -1,97 +1,108 @@
 mmap-shield: medicion de sobrecosto
-Fecha:       2026-11-05T15:05:27-05:00
+Fecha:       2026-11-05T15:38:13-05:00
 Kernel:      6.18.33.2-microsoft-standard-WSL2
 CPU:         Intel(R) Core(TM) Ultra 9 275HX
-Parametros:  ITERATIONS=20000 PAGES=64 REPS=5
+Parametros:  ITERATIONS=20000 PAGES=64 REPS=10 STRACE_CPU=0
 Herramientas: perf=perf strace=/usr/bin/strace ftrace=/sys/kernel/tracing
 
+################ RONDAS INTERCALADAS ABBA (bench_mmap + ftrace) ################
+  ronda 1/10: sin modulo, luego con modulo
+  ronda 2/10: con modulo, luego sin modulo
+  ronda 3/10: sin modulo, luego con modulo
+  ronda 4/10: con modulo, luego sin modulo
+  ronda 5/10: sin modulo, luego con modulo
+  ronda 6/10: con modulo, luego sin modulo
+  ronda 7/10: sin modulo, luego con modulo
+  ronda 8/10: con modulo, luego sin modulo
+  ronda 9/10: sin modulo, luego con modulo
+  ronda 10/10: con modulo, luego sin modulo
+  (eventos de ftrace perdidos por desbordamiento del buffer: 0)
+
 ################ SIN MODULO ################
---- bench_mmap: mediana de 5 ejecuciones (20000 iteraciones, 64 paginas) ---
-  mmap_munmap_file_r_ns      3002.7
-  mmap_munmap_file_rw_ns     3120.3
-  mmap_munmap_anon_ns        3275.6
-  mprotect_anon_ns           1446.6
-  mprotect_file_ns           834.4
-  page_fault_ns              3101.6
-  faults_per_mapping         5.00
+--- bench_mmap: mediana de 10 rondas intercaladas (20000 iteraciones, 64 paginas) ---
+  mmap_munmap_file_r_ns      3110.700   (rango 2430.8-3483.2)
+  mmap_munmap_file_rw_ns     3157.100   (rango 3093.2-3772.8)
+  mmap_munmap_anon_ns        3351.450   (rango 3191.9-4221.1)
+  mprotect_anon_ns           1528.000   (rango 1433.5-1658.4)
+  mprotect_file_ns           826.100    (rango 796.7-936.1)
+  page_fault_ns              3347.800   (rango 3075.5-3805.1)
+  faults_per_mapping         4.000      (rango 4.00-4.00)
+--- ftrace function_graph: latencia en kernel, mediana de 10 rondas (1000 iteraciones c/u) ---
+  __x64_sys_mmap         llamadas=3113     media_us=1.623    (rango 1.075-1.807)
+  __x64_sys_mprotect     llamadas=4003     media_us=1.077    (rango 0.408-1.275)
+  handle_mm_fault        llamadas=392      media_us=2.247    (rango 1.952-2.810)
 --- perf stat ---
- Performance counter stats for '/home/jepalaciob/kbuild/mmap-shield-run/tests/bench_mmap 20000 64' (5 runs):
+ Performance counter stats for '/home/jepalaciob/kbuild/mmap-shield-final/tests/bench_mmap 20000 64' (10 runs):
 
-              4734      page-faults                                                             ( +-  5.17% )
-              4734      minor-faults                                                            ( +-  5.17% )
+              4135      page-faults                                                             ( +-  0.00% )
+              4135      minor-faults                                                            ( +-  0.00% )
                  0      major-faults                                                          
-                23      context-switches                                                        ( +- 12.19% )
-            293.74 msec task-clock                                                              ( +-  4.63% )
+                22      context-switches                                                        ( +-  5.56% )
+            280.67 msec task-clock                                                              ( +-  2.69% )
 
-       0.298607254 +- 0.013704475 seconds time elapsed  ( +-  4.59% )
+       0.285906427 +- 0.007596077 seconds time elapsed  ( +-  2.66% )
 
---- strace -c (mmap, mprotect, munmap; 1000 iteraciones) ---
+--- strace -c (mmap, mprotect, munmap; 1000 iteraciones; fijado a la CPU 0) ---
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
- 37.04    0.090312          22      4003           mprotect
- 32.32    0.078808          25      3063           mmap
- 30.64    0.074716          24      3054           munmap
+ 39.23    0.013298           3      4003           mprotect
+ 31.43    0.010653           3      3154           munmap
+ 29.34    0.009943           3      3113           mmap
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.243836          24     10120           total
---- ftrace function_graph: latencia en kernel (1000 iteraciones) ---
-  (eventos perdidos por desbordamiento del buffer: 0)
-  __x64_sys_mmap         llamadas=3063     media_us=1.919
-  __x64_sys_mprotect     llamadas=4003     media_us=0.442
-  handle_mm_fault        llamadas=390      media_us=2.357
+100.00    0.033894           3     10270           total
 
 ################ CON MODULO (enforcing, todas las politicas) ################
---- bench_mmap: mediana de 5 ejecuciones (20000 iteraciones, 64 paginas) ---
-  mmap_munmap_file_r_ns      3103.8
-  mmap_munmap_file_rw_ns     3528.4
-  mmap_munmap_anon_ns        3448.4
-  mprotect_anon_ns           1597.0
-  mprotect_file_ns           1020.1
-  page_fault_ns              3089.8
-  faults_per_mapping         5.00
+--- bench_mmap: mediana de 10 rondas intercaladas (20000 iteraciones, 64 paginas) ---
+  mmap_munmap_file_r_ns      3202.250   (rango 2904.6-3339.7)
+  mmap_munmap_file_rw_ns     3405.550   (rango 3027.8-3989.9)
+  mmap_munmap_anon_ns        3440.900   (rango 2676.1-3714.9)
+  mprotect_anon_ns           1606.250   (rango 686.5-1706.1)
+  mprotect_file_ns           1018.850   (rango 760.1-1059.2)
+  page_fault_ns              3400.750   (rango 2773.3-3547.0)
+  faults_per_mapping         4.000      (rango 4.00-4.00)
+--- ftrace function_graph: latencia en kernel, mediana de 10 rondas (1000 iteraciones c/u) ---
+  __x64_sys_mmap         llamadas=3113     media_us=1.789    (rango 1.197-1.922)
+  __x64_sys_mprotect     llamadas=4003     media_us=1.263    (rango 0.581-1.372)
+  handle_mm_fault        llamadas=393      media_us=2.273    (rango 1.819-2.743)
 --- perf stat ---
- Performance counter stats for '/home/jepalaciob/kbuild/mmap-shield-run/tests/bench_mmap 20000 64' (5 runs):
+ Performance counter stats for '/home/jepalaciob/kbuild/mmap-shield-final/tests/bench_mmap 20000 64' (10 runs):
 
-              5135      page-faults                                                             ( +-  0.01% )
-              5135      minor-faults                                                            ( +-  0.01% )
+              4134      page-faults                                                             ( +-  0.00% )
+              4134      minor-faults                                                            ( +-  0.00% )
                  0      major-faults                                                          
-                23      context-switches                                                        ( +-  5.03% )
-            334.62 msec task-clock                                                              ( +-  1.19% )
+                23      context-switches                                                        ( +-  7.94% )
+            299.72 msec task-clock                                                              ( +-  3.05% )
 
-       0.342218826 +- 0.004342613 seconds time elapsed  ( +-  1.27% )
+       0.304925419 +- 0.009425680 seconds time elapsed  ( +-  3.09% )
 
---- strace -c (mmap, mprotect, munmap; 1000 iteraciones) ---
+--- strace -c (mmap, mprotect, munmap; 1000 iteraciones; fijado a la CPU 0) ---
 % time     seconds  usecs/call     calls    errors syscall
 ------ ----------- ----------- --------- --------- ----------------
- 36.22    0.082260          20      4003           mprotect
- 33.08    0.075123          24      3063           mmap
- 30.70    0.069718          22      3054           munmap
+ 34.15    0.011780           3      3113           mmap
+ 33.43    0.011531           2      4003           mprotect
+ 32.41    0.011180           3      3154           munmap
 ------ ----------- ----------- --------- --------- ----------------
-100.00    0.227101          22     10120           total
---- ftrace function_graph: latencia en kernel (1000 iteraciones) ---
-  (eventos perdidos por desbordamiento del buffer: 0)
-  __x64_sys_mmap         llamadas=3063     media_us=1.822
-  __x64_sys_mprotect     llamadas=4003     media_us=1.395
-  handle_mm_fault        llamadas=392      media_us=2.404
---- Telemetria del modulo durante la medicion ---
-  Total llamadas interceptadas:     1426516
-    De ellas, cambios mprotect:     808384
-  Mapeos permitidos:                1426516
+100.00    0.034491           3     10270           total
+--- Telemetria del modulo durante perf y strace ---
+  Total llamadas interceptadas:     1431403
+    De ellas, cambios mprotect:     804707
+  Mapeos permitidos:                1431403
   Mapeos bloqueados:                0
   Accesos sensibles bloqueados:     0
 
-################ RESUMEN (medianas) ################
+################ RESUMEN (medianas de las rondas intercaladas) ################
   METRICA                      SIN_MODULO   CON_MODULO     CAMBIO
-  mmap_munmap_file_r_ns            3002.7       3103.8      +3.4%
-  mmap_munmap_file_rw_ns           3120.3       3528.4     +13.1%
-  mmap_munmap_anon_ns              3275.6       3448.4      +5.3%
-  mprotect_anon_ns                 1446.6       1597.0     +10.4%
-  mprotect_file_ns                  834.4       1020.1     +22.3%
-  page_fault_ns                    3101.6       3089.8      -0.4%
-  faults_per_mapping                 5.00         5.00      +0.0%
+  mmap_munmap_file_r_ns          3110.700     3202.250      +2.9%
+  mmap_munmap_file_rw_ns         3157.100     3405.550      +7.9%
+  mmap_munmap_anon_ns            3351.450     3440.900      +2.7%
+  mprotect_anon_ns               1528.000     1606.250      +5.1%
+  mprotect_file_ns                826.100     1018.850     +23.3%
+  page_fault_ns                  3347.800     3400.750      +1.6%
+  faults_per_mapping                4.000        4.000      +0.0%
 
   FUNCION (ftrace)        SIN_MODULO_us  CON_MODULO_us     CAMBIO
-  __x64_sys_mmap                  1.919          1.822      -5.1%
-  __x64_sys_mprotect              0.442          1.395    +215.6%
-  handle_mm_fault                 2.357          2.404      +2.0%
+  __x64_sys_mmap                  1.623          1.789     +10.2%
+  __x64_sys_mprotect              1.077          1.263     +17.3%
+  handle_mm_fault                 2.247          2.273      +1.2%
 
-Resultados guardados en /home/jepalaciob/kbuild/mmap-shield-run/results/overhead-6.18.33.2-microsoft-standard-WSL2.txt
+Resultados guardados en /home/jepalaciob/kbuild/mmap-shield-final/results/overhead-6.18.33.2-microsoft-standard-WSL2.txt

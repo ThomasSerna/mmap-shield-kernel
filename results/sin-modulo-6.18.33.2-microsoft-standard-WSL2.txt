@@ -1,0 +1,40 @@
+==================== Linea base: pruebas como usuario sin privilegios y SIN el modulo cargado ====================
+
+======================================================================
+   mmap-shield: Suite de Validacion de Seguridad en Espacio de Usuario
+======================================================================
+
+[*] TEST 1: Mapeo de memoria legitimo (Lectura regular)... [PASO (PERMITIDO)]
+[*] TEST 2: Violacion de politica W^X (PROT_WRITE | PROT_EXEC)... [FALLO DE SEGURIDAD] Mapeo W^X fue permitido indebidamente en 0x7c41272d7000
+[*] TEST 3: Acceso no autorizado a archivo sensible (/tmp/mmap-shield-test-Sp66mQ/protected)... [FALLO DE SEGURIDAD] Escritura compartida en archivo protegido fue permitida en 0x7c41272d7000
+[*] TEST 4: Simulacion de vector precursor Dirty COW (RO + MAP_PRIVATE|PROT_WRITE)... [ALERTA] Mapeo COW permitido en 0x7c41272d7000 (Verificar si el modulo esta en modo ENFORCING)
+[*] TEST 5: MAP_SHARED | PROT_WRITE con descriptor O_RDONLY... [PASO (RECHAZADO CORRECTAMENTE: Permission denied)]
+[*] TEST 6: Evasion W^X con mprotect (RW -> RWX)... [FALLO DE SEGURIDAD] mprotect a RWX fue permitido en 0x7c41272d7000
+[*] TEST 7: Evasion W^X con personalidad READ_IMPLIES_EXEC... [FALLO DE SEGURIDAD] Mapeo permitido en 0x7c41272d7000 (VMA RWX)
+[*] TEST 8: Alias W^X con doble mapeo de memfd (RW + RX)... [FALLO DE SEGURIDAD] Vista ejecutable permitida antes y permitida despues de la escribible
+[*] TEST 9: Precursor Dirty COW via mprotect (RO + MAP_PRIVATE, luego PROT_WRITE)... [FALLO DE SEGURIDAD] mprotect concedio PROT_WRITE sobre la copia COW del archivo protegido
+[*] TEST 10: Enlace duro al archivo protegido (otra ruta, mismo inodo)... [FALLO DE SEGURIDAD] El archivo protegido fue modificado a traves del enlace duro
+[*] TEST 11: Escritura compartida en archivo protegido via mprotect... [FALLO DE SEGURIDAD] mprotect concedio escritura compartida sobre el archivo protegido
+
+----------------------------------------------------------------------
+ Resumen de Pruebas: 2 de 11 pruebas superadas con exito
+----------------------------------------------------------------------
+
+test_runner sin modulo -> exit=1 (se espera != 0)
+
+======================================================================
+   mmap-shield: Simulacion de Ataques de Carrera (uid=1000)
+======================================================================
+
+[*] CARRERA 1: Dirty COW (madvise + mprotect + /proc/self/mem sobre /tmp/shield-base-HklvWF/root_protected)...
+    madvise: 1637850 | intentos mprotect(PROT_WRITE): 14271 (concedidos: 14271) | escrituras /proc/self/mem: 129825
+    Archivo en disco/page cache: intacto
+    [FALLO DE SEGURIDAD] mprotect concedio escritura sobre la copia COW
+[*] CARRERA 2: TOCTOU por intercambio de nombres (renameat2 RENAME_EXCHANGE)...
+    Intercambios: 1091581 | aperturas del inodo protegido bajo otro nombre: 215135 | mapeos escribibles obtenidos sobre el: 215135
+    Archivo benigno: 216933 mapeos permitidos, 0 rechazados (el nombre protegido apuntaba a el en ese instante)
+    [FALLO DE SEGURIDAD] Se obtuvieron 215135 mapeos escribibles del archivo protegido
+
+ Resumen de Carreras: 0 de 2 superadas con exito
+
+race_attacks sin modulo -> exit=1 (se espera != 0)

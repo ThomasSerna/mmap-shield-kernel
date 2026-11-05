@@ -361,30 +361,32 @@ Ejecutados en WSL2 (kernel 6.18.33.2-microsoft-standard-WSL2, IBT activo, Intel 
 
 - Pruebas funcionales y de evasión: **11 de 11** superadas.
 - Uso normal del sistema con el módulo cargado: `ls`, `bash`, `python3`, `gcc`, `make` y `git` funcionan sin bloqueos.
-- Carrera Dirty COW: 2 902 995 llamadas a `madvise`, 41 849 intentos de `mprotect(PROT_WRITE)` (0 concedidos) y 161 189 escrituras por `/proc/self/mem` (solo afectan la copia privada); archivo de root intacto.
-- Carrera TOCTOU: 1 187 435 intercambios de nombre; el inodo protegido se abrió 205 202 veces bajo el nombre del señuelo y se obtuvieron 0 mapeos escribibles sobre él.
-- 10 ciclos de descarga y recarga del módulo mientras otro proceso completaba 568 776 iteraciones de `mmap`/`mprotect`/`munmap`, sin errores en `dmesg` (`results/dmesg-6.18.33.2-microsoft-standard-WSL2.txt`).
+- Carrera Dirty COW: 2 953 838 llamadas a `madvise`, 39 816 intentos de `mprotect(PROT_WRITE)` (0 concedidos) y 161 575 escrituras por `/proc/self/mem` (solo afectan la copia privada); archivo de root intacto.
+- Carrera TOCTOU: 1 128 433 intercambios de nombre; el inodo protegido se abrió 171 870 veces bajo el nombre del señuelo y se obtuvieron 0 mapeos escribibles sobre él.
+- 10 ciclos de descarga y recarga del módulo mientras otro proceso completaba 337 693 iteraciones de `mmap`/`mprotect`/`munmap`, sin errores en `dmesg` (`results/dmesg-6.18.33.2-microsoft-standard-WSL2.txt`).
+
+Sin el módulo (`results/sin-modulo-6.18.33.2-microsoft-standard-WSL2.txt`), el mismo `test_runner` supera solo 2 de 11 pruebas (la 1, que es un mapeo legítimo, y la 5, que el kernel ya rechaza) y `race_attacks` 0 de 2: obtiene 14 271 `mprotect(PROT_WRITE)` sobre la copia COW y 215 135 mapeos escribibles del inodo protegido.
 
 ### Sobrecosto (`results/overhead-6.18.33.2-microsoft-standard-WSL2.txt`)
 
-`bench_mmap`, mediana de 5 ejecuciones de 20 000 iteraciones sobre 64 páginas:
+`bench_mmap`, mediana de 10 rondas intercaladas de 20 000 iteraciones sobre 64 páginas:
 
 | Métrica | Sin módulo | Con módulo | Cambio |
 |---|---:|---:|---:|
-| `mmap`+`munmap` archivo, `PROT_READ` (ns) | 3002.7 | 3103.8 | +3.4 % |
-| `mmap`+`munmap` archivo, `PROT_READ\|PROT_WRITE` (ns) | 3120.3 | 3528.4 | +13.1 % |
-| `mmap`+`munmap` anónimo (ns) | 3275.6 | 3448.4 | +5.3 % |
-| `mprotect` anónimo (ns) | 1446.6 | 1597.0 | +10.4 % |
-| `mprotect` de archivo (ns) | 834.4 | 1020.1 | +22.3 % |
-| Fallo de página (ns) | 3101.6 | 3089.8 | −0.4 % |
-| Fallos por mapeo de 64 páginas | 5.00 | 5.00 | 0 % |
+| `mmap`+`munmap` archivo, `PROT_READ` (ns) | 3110.7 | 3202.3 | +2.9 % |
+| `mmap`+`munmap` archivo, `PROT_READ\|PROT_WRITE` (ns) | 3157.1 | 3405.6 | +7.9 % |
+| `mmap`+`munmap` anónimo (ns) | 3351.5 | 3440.9 | +2.7 % |
+| `mprotect` anónimo (ns) | 1528.0 | 1606.3 | +5.1 % |
+| `mprotect` de archivo (ns) | 826.1 | 1018.9 | +23.3 % |
+| Fallo de página (ns) | 3347.8 | 3400.8 | +1.6 % |
+| Fallos por mapeo de 64 páginas | 4.00 | 4.00 | 0 % |
 
-ftrace `function_graph`, latencia media dentro del kernel con 1000 iteraciones (medida con el trazador activo, que añade su propio costo):
+ftrace `function_graph`, latencia media dentro del kernel, mediana de 10 rondas de 1000 iteraciones (medida con el trazador activo, que añade su propio costo):
 
 | Función | Llamadas | Sin módulo (µs) | Con módulo (µs) | Cambio |
 |---|---:|---:|---:|---:|
-| `__x64_sys_mmap` | 3063 | 1.919 | 1.822 | −5.1 % |
-| `__x64_sys_mprotect` | 4003 | 0.442 | 1.395 | +215.6 % |
-| `handle_mm_fault` | ~390 | 2.357 | 2.404 | +2.0 % |
+| `__x64_sys_mmap` | 3113 | 1.623 | 1.789 | +10.2 % |
+| `__x64_sys_mprotect` | 4003 | 1.077 | 1.263 | +17.3 % |
+| `handle_mm_fault` | ~392 | 2.247 | 2.273 | +1.2 % |
 
-`perf stat` (5 ejecuciones): 4734 fallos de página sin módulo y 5135 con módulo, todos menores, y 293.74 ms frente a 334.62 ms de CPU. `strace -c`: 22-25 µs por llamada en ambos casos, valor dominado por el propio `strace`. El módulo interceptó 1 426 516 llamadas durante la medición, sin bloquear ninguna.
+`perf stat` (10 ejecuciones): 4135 fallos de página sin módulo y 4134 con módulo, todos menores, y 280.67 ms frente a 299.72 ms de CPU. `strace -c` (fijado a la CPU 0): 2-3 µs por llamada en ambos casos; la diferencia que mide ftrace (~0.2 µs) queda por debajo de su resolución de 1 µs. El módulo interceptó 1 431 403 llamadas durante `perf` y `strace`, sin bloquear ninguna.

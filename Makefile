@@ -11,7 +11,7 @@ obj-m += $(MODULE_NAME).o
 $(MODULE_NAME)-y := src/main.o src/hook_engine.o src/policy.o src/proc_interface.o
 
 # Flags de compilación limpia y cabeceras
-ccflags-y += -I$(src)/include -Wall -Wextra -Wno-unused-parameter
+ccflags-y += -I$(src)/include -Wall
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
 

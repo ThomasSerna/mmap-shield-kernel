@@ -17,7 +17,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 
 PWD := $(CURDIR)
 
-.PHONY: all modules clean load unload reload status tests run-tests help
+.PHONY: all modules clean load unload reload status tests run-tests measure help
 
 all: modules
 
@@ -31,7 +31,7 @@ clean:
 	@echo "==> Limpiando artefactos de compilacion del kernel..."
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	@rm -f src/*.o src/.*.cmd src/*.mod src/*.mod.c src/.*.d
-	@rm -f tests/test_runner tests/race_attacks tests/*.log
+	@rm -f tests/test_runner tests/race_attacks tests/bench_mmap tests/*.log
 	@echo "==> Limpieza completada."
 
 load:
@@ -67,11 +67,16 @@ tests:
 	@echo "==> Compilando suite de pruebas de espacio de usuario..."
 	gcc -O2 -Wall -Wextra tests/test_runner.c -o tests/test_runner
 	gcc -O2 -Wall -Wextra -pthread tests/race_attacks.c -o tests/race_attacks
-	@echo "==> Binarios de pruebas generados: tests/test_runner tests/race_attacks"
+	gcc -O2 -Wall -Wextra tests/bench_mmap.c -o tests/bench_mmap
+	@echo "==> Binarios de pruebas generados: tests/test_runner tests/race_attacks tests/bench_mmap"
 
 run-tests: tests
 	@echo "==> Ejecutando suite de pruebas automatizadas..."
 	@bash tests/run_tests.sh
+
+measure: tests
+	@echo "==> Midiendo sobrecosto sin y con el modulo..."
+	@bash tests/measure_overhead.sh
 
 help:
 	@echo "Opciones disponibles en el Makefile de mmap-shield:"
@@ -81,5 +86,6 @@ help:
 	@echo "  make unload       - Descargar el modulo con rmmod (requiere sudo)"
 	@echo "  make reload       - Descargar y volver a cargar el modulo"
 	@echo "  make status       - Ver telemetria de /proc/mmap_shield y dmesg"
-	@echo "  make tests        - Compilar el binario de pruebas en espacio de usuario"
-	@echo "  make run-tests    - Ejecutar suite de validacion y pruebas"
+	@echo "  make tests        - Compilar los binarios de pruebas en espacio de usuario"
+	@echo "  make run-tests    - Ejecutar suite de validacion, evasiones y carreras (requiere root)"
+	@echo "  make measure      - Medir el sobrecosto con perf, strace y ftrace (requiere root)"

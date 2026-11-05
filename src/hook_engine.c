@@ -1,9 +1,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/kprobes.h>
 #include <linux/ftrace.h>
 #include <linux/fs.h>
+#include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
 #include "../include/mmap_shield.h"
@@ -22,54 +22,13 @@
 #error "mmap-shield requiere CONFIG_DYNAMIC_FTRACE_WITH_REGS"
 #endif
 
-/* Typedef for resolved kallsyms_lookup_name */
-typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
-static kallsyms_lookup_name_t g_kallsyms_lookup_name = NULL;
-
 /*
- * Resolves kallsyms_lookup_name dynamically.
- * In Linux >= 5.7, kallsyms_lookup_name is no longer exported via EXPORT_SYMBOL.
- * We resolve it safely using a temporary kprobe, without disabling CR0.WP or
- * risking kernel page table corruption.
+ * Hooks are attached by function name with ftrace_set_filter(), so the module
+ * never needs the address of a kernel symbol. The usual alternative (finding
+ * kallsyms_lookup_name with a temporary kprobe and calling it through a
+ * pointer) crashes on kernels with IBT: kallsyms_lookup_name is not exported,
+ * objtool seals its ENDBR and the indirect call raises #CP (Missing ENDBR).
  */
-static int resolve_kallsyms(void)
-{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
-    struct kprobe kp = {
-        .symbol_name = "kallsyms_lookup_name"
-    };
-    int ret;
-
-    ret = register_kprobe(&kp);
-    if (ret < 0) {
-        pr_err("[%s] Error registrando kprobe para kallsyms_lookup_name: %d\n", MODULE_NAME, ret);
-        return ret;
-    }
-
-    g_kallsyms_lookup_name = (kallsyms_lookup_name_t)kp.addr;
-    unregister_kprobe(&kp);
-
-    if (!g_kallsyms_lookup_name) {
-        pr_err("[%s] Direccion de kallsyms_lookup_name es nula\n", MODULE_NAME);
-        return -EFAULT;
-    }
-
-    pr_info("[%s] kallsyms_lookup_name resuelto en %px via kprobe\n",
-            MODULE_NAME, (void *)g_kallsyms_lookup_name);
-#else
-    g_kallsyms_lookup_name = kallsyms_lookup_name;
-#endif
-    return 0;
-}
-
-unsigned long shield_resolve_symbol(const char *name)
-{
-    if (!g_kallsyms_lookup_name) {
-        if (resolve_kallsyms() < 0)
-            return 0;
-    }
-    return g_kallsyms_lookup_name(name);
-}
 
 /*
  * security_mmap_file(file, prot, flags)
@@ -156,15 +115,22 @@ static void notrace fh_ftrace_thunk(unsigned long ip, unsigned long parent_ip,
 }
 #endif
 
+/* Drops the function filter of an ops that is not registered. */
+static void clear_filter(struct ftrace_ops *ops)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
+    ftrace_free_filter(ops);
+#else
+    /* ftrace_free_filter() is exported to modules only since 6.2 */
+    ftrace_set_filter(ops, NULL, 0, 1);
+#endif
+}
+
 static int install_hook(struct ftrace_hook *hook)
 {
     int ret;
 
-    hook->address = shield_resolve_symbol(hook->name);
-    if (!hook->address) {
-        pr_warn("[%s] Simbolo '%s' no encontrado en el kernel\n", MODULE_NAME, hook->name);
-        return -ENOENT;
-    }
+    char filter[KSYM_NAME_LEN];
 
     hook->ops.func = fh_ftrace_thunk;
     /*
@@ -178,23 +144,25 @@ static int install_hook(struct ftrace_hook *hook)
 #endif
                     | FTRACE_OPS_FL_IPMODIFY;
 
-    ret = ftrace_set_filter_ip(&hook->ops, hook->address, 0, 0);
+    /* ftrace_set_filter() parses (and may modify) its buffer: use a copy */
+    strscpy(filter, hook->name, sizeof(filter));
+    ret = ftrace_set_filter(&hook->ops, (unsigned char *)filter, strlen(filter), 1);
     if (ret) {
-        pr_err("[%s] ftrace_set_filter_ip fallo para '%s' (err=%d)\n", MODULE_NAME, hook->name, ret);
-        hook->address = 0;
+        pr_err("[%s] '%s' no es trazable por ftrace en este kernel (err=%d)\n",
+               MODULE_NAME, hook->name, ret);
+        clear_filter(&hook->ops);
         return ret;
     }
 
     ret = register_ftrace_function(&hook->ops);
     if (ret) {
         pr_err("[%s] register_ftrace_function fallo para '%s' (err=%d)\n", MODULE_NAME, hook->name, ret);
-        ftrace_set_filter_ip(&hook->ops, hook->address, 1, 0);
-        hook->address = 0;
+        clear_filter(&hook->ops);
         return ret;
     }
 
-    pr_info("[%s] Hook ftrace activado para '%s' en %px\n",
-            MODULE_NAME, hook->name, (void *)hook->address);
+    hook->installed = true;
+    pr_info("[%s] Hook ftrace activado para '%s'\n", MODULE_NAME, hook->name);
     return 0;
 }
 
@@ -202,20 +170,16 @@ static void remove_hook(struct ftrace_hook *hook)
 {
     int ret;
 
-    if (!hook->address)
+    if (!hook->installed)
         return;
 
     ret = unregister_ftrace_function(&hook->ops);
     if (ret) {
         pr_warn("[%s] unregister_ftrace_function fallo para '%s' (err=%d)\n", MODULE_NAME, hook->name, ret);
     }
+    clear_filter(&hook->ops);
 
-    ret = ftrace_set_filter_ip(&hook->ops, hook->address, 1, 0);
-    if (ret) {
-        pr_warn("[%s] ftrace_set_filter_ip limpieza fallo para '%s' (err=%d)\n", MODULE_NAME, hook->name, ret);
-    }
-
-    hook->address = 0;
+    hook->installed = false;
     pr_info("[%s] Hook ftrace desactivado para '%s'\n", MODULE_NAME, hook->name);
 }
 
@@ -223,13 +187,6 @@ int shield_hook_init(void)
 {
     size_t i;
     int ret;
-
-    /* Initialize symbol resolver */
-    ret = resolve_kallsyms();
-    if (ret < 0) {
-        pr_err("[%s] No fue posible inicializar resolutor de simbolos\n", MODULE_NAME);
-        return ret;
-    }
 
     for (i = 0; i < ARRAY_SIZE(g_hooks); i++) {
         ret = install_hook(&g_hooks[i]);

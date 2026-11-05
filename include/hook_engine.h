@@ -3,7 +3,6 @@
 
 #include <linux/types.h>
 #include <linux/ftrace.h>
-#include <linux/kprobes.h>
 #include <linux/ptrace.h>
 #include "mmap_shield.h"
 
@@ -19,18 +18,15 @@
  * original function sleeps.
  */
 struct ftrace_hook {
-    const char *name;                            /* Kernel symbol to intercept */
+    const char *name;                            /* Kernel function to intercept (ftrace filter) */
     bool (*should_deny)(struct pt_regs *regs);   /* Policy decision (atomic context) */
     void *deny_stub;                             /* Executed instead of the original when denied */
-    unsigned long address;                       /* Resolved address of the symbol */
+    bool installed;                              /* ftrace_ops registered */
     struct ftrace_ops ops;
 };
 
 /* Hook management functions */
 int  shield_hook_init(void);
 void shield_hook_cleanup(void);
-
-/* Symbol resolution helper */
-unsigned long shield_resolve_symbol(const char *name);
 
 #endif /* HOOK_ENGINE_H */

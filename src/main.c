@@ -7,29 +7,29 @@
 #include "../include/mmap_shield.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Thomas Serna & SO2026B Team");
+MODULE_AUTHOR("Juan Esteban Palacio Betancur, Mateo Montoya Ospina, Thomas Serna Saldarriaga");
 MODULE_DESCRIPTION("mmap-shield: LKM Security Monitor and Interceptor for mmap/file_mmap");
 MODULE_VERSION(MMAP_SHIELD_VERSION);
 
 /* Module parameters for initial configuration */
 static int enforce_mode = 1;
-module_param(enforce_mode, int, 0644);
+module_param(enforce_mode, int, 0444);
 MODULE_PARM_DESC(enforce_mode, "Enforcement mode: 1 = ENFORCING, 0 = PERMISSIVE (default: 1)");
 
 static bool block_wx = true;
-module_param(block_wx, bool, 0644);
+module_param(block_wx, bool, 0444);
 MODULE_PARM_DESC(block_wx, "Block W^X violations (PROT_WRITE | PROT_EXEC) (default: true)");
 
 static bool block_dirty_cow = true;
-module_param(block_dirty_cow, bool, 0644);
+module_param(block_dirty_cow, bool, 0444);
 MODULE_PARM_DESC(block_dirty_cow, "Mitigate Dirty COW attack patterns (default: true)");
 
 static bool block_sensitive = true;
-module_param(block_sensitive, bool, 0644);
+module_param(block_sensitive, bool, 0444);
 MODULE_PARM_DESC(block_sensitive, "Protect designated sensitive system files (default: true)");
 
 static bool audit_all = false;
-module_param(audit_all, bool, 0644);
+module_param(audit_all, bool, 0444);
 MODULE_PARM_DESC(audit_all, "Audit all mmap calls, including benign (default: false)");
 
 /* Global state definitions */

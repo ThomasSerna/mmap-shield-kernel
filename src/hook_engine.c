@@ -92,11 +92,38 @@ static noinline int deny_mmap_file(struct file *file, unsigned long prot,
     return -EACCES;
 }
 
+/*
+ * security_file_mprotect(vma, reqprot, prot)
+ * Runs for every VMA whose permissions change through mprotect/pkey_mprotect.
+ * Without it, W^X and the Dirty COW rule could be bypassed by mapping with
+ * harmless permissions and adding PROT_WRITE / PROT_EXEC afterwards.
+ */
+static bool file_mprotect_should_deny(struct pt_regs *regs)
+{
+    struct vm_area_struct *vma = (struct vm_area_struct *)regs_get_kernel_argument(regs, 0);
+    unsigned long reqprot = regs_get_kernel_argument(regs, 1);
+    unsigned long prot = regs_get_kernel_argument(regs, 2);
+
+    return shield_check_mprotect(vma, reqprot, prot);
+}
+
+/* Executed instead of security_file_mprotect() when the change is denied. */
+static noinline int deny_file_mprotect(struct vm_area_struct *vma,
+                                       unsigned long reqprot, unsigned long prot)
+{
+    return -EACCES;
+}
+
 static struct ftrace_hook g_hooks[] = {
     {
         .name        = "security_mmap_file",
         .should_deny = mmap_file_should_deny,
         .deny_stub   = deny_mmap_file,
+    },
+    {
+        .name        = "security_file_mprotect",
+        .should_deny = file_mprotect_should_deny,
+        .deny_stub   = deny_file_mprotect,
     },
 };
 

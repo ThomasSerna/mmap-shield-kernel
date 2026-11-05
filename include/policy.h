@@ -2,6 +2,7 @@
 #define POLICY_H
 
 #include <linux/fs.h>
+#include <linux/mm_types.h>
 #include <linux/seq_file.h>
 #include "mmap_shield.h"
 
@@ -19,6 +20,8 @@ struct protected_path {
  * (a violation was found and the module is in ENFORCING mode).
  */
 bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flags);
+bool shield_check_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
+                           unsigned long prot);
 
 /* Protected path management */
 int  shield_add_protected_path(const char *path);

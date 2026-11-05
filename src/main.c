@@ -54,7 +54,7 @@ void shield_audit_init(void)
 
 void shield_audit_log(pid_t pid, pid_t tgid, kuid_t uid, const char *comm,
                       const char *path, unsigned long prot, unsigned long flags_val,
-                      shield_action_t action, int enforced)
+                      shield_action_t action, shield_origin_t origin, int enforced)
 {
     unsigned long irq_flags;
     struct shield_audit_event *ev;
@@ -72,6 +72,7 @@ void shield_audit_log(pid_t pid, pid_t tgid, kuid_t uid, const char *comm,
     ev->prot = prot;
     ev->flags = flags_val;
     ev->action = action;
+    ev->origin = origin;
     ev->enforced = enforced;
 
     if (comm) {
@@ -139,6 +140,7 @@ static int __init mmap_shield_init(void)
 
     /* Initialize atomic stats */
     atomic64_set(&g_shield_stats.total_intercepted, 0);
+    atomic64_set(&g_shield_stats.mprotect_intercepted, 0);
     atomic64_set(&g_shield_stats.total_allowed, 0);
     atomic64_set(&g_shield_stats.total_blocked, 0);
     atomic64_set(&g_shield_stats.wx_violations, 0);

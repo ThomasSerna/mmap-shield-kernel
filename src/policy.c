@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/dcache.h>
 #include <linux/path.h>
 #include <linux/slab.h>
@@ -152,13 +153,40 @@ static bool is_path_protected(const char *file_path)
     return match;
 }
 
-/*
- * Evaluates policy for file_mmap (security_mmap_file).
- * Intercepts at the LSM layer before any VMA allocation or Page Cache access.
- * Anonymous mappings arrive here too, with file == NULL.
- */
-bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flags)
+/* Request under evaluation, normalized for both interception points. */
+struct shield_request {
+    struct file *file;           /* Backing file, NULL for anonymous memory */
+    unsigned long prot;          /* Protection being requested */
+    unsigned long flags;         /* MAP_* flags (for mprotect: MAP_SHARED/MAP_PRIVATE of the VMA) */
+    bool shared;                 /* Writes reach the page cache (MAP_SHARED / VM_SHARED) */
+    shield_origin_t origin;
+};
+
+static const char *verdict_to_log(shield_action_t verdict)
 {
+    switch (verdict) {
+    case SHIELD_BLOCK_WX:
+        return "BLOQUEO_W^X";
+    case SHIELD_BLOCK_SENSITIVE_FILE:
+        return "BLOQUEO_ARCHIVO_SENSIBLE";
+    case SHIELD_BLOCK_DIRTY_COW:
+        return "DETECCION_DIRTY_COW";
+    case SHIELD_BLOCK_SHARED_WRITE:
+        return "BLOQUEO_MAP_SHARED";
+    default:
+        return "PERMITIDO";
+    }
+}
+
+/*
+ * Applies the security policy to a mapping request (mmap) or to a permission
+ * change on an existing mapping (mprotect). Runs in the ftrace callback, so it
+ * must not sleep. Returns true when the call must be denied.
+ */
+static bool shield_evaluate(const struct shield_request *req)
+{
+    struct file *file = req->file;
+    unsigned long prot = req->prot;
     char *path_buf = NULL;
     char *resolved_path = NULL;
     char path_str[MMAP_SHIELD_PATH_MAX] = "<anon>";
@@ -169,6 +197,8 @@ bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flag
     shield_action_t verdict = SHIELD_ACTION_ALLOW;
 
     atomic64_inc(&g_shield_stats.total_intercepted);
+    if (req->origin == SHIELD_ORIGIN_MPROTECT)
+        atomic64_inc(&g_shield_stats.mprotect_intercepted);
 
     /* Resolve file path if file pointer is present */
     if (file && file->f_path.dentry) {
@@ -193,9 +223,12 @@ bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flag
      * 2. Policy: Dirty COW (CVE-2016-5195) Precursor Detection
      * The Dirty COW exploit relies on:
      *   - File opened read-only (f_mode & FMODE_READ && !(f_mode & FMODE_WRITE))
-     *   - Mapped with MAP_PRIVATE | PROT_WRITE
+     *   - A private (COW) mapping of it that becomes writable
      * This creates a COW mapping that racing threads (madvise + /proc/self/mem write)
      * abuse to force dirty page writes into the Page Cache.
+     *
+     * The writable private mapping can be requested directly in mmap() or
+     * obtained later with mprotect(), so both interception points apply it.
      *
      * Evaluated before the sensitive-file rule so the precursor is classified
      * as DIRTY_COW instead of a generic sensitive-file violation.
@@ -207,7 +240,7 @@ bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flag
      */
     if (g_shield_config.block_dirty_cow && file) {
         bool file_opened_ro = !(file->f_mode & FMODE_WRITE);
-        bool req_private_write = (flags & MAP_PRIVATE) && (prot & PROT_WRITE);
+        bool req_private_write = !req->shared && (prot & PROT_WRITE);
 
         if (file_opened_ro && req_private_write && is_path_protected(path_str)) {
             verdict = SHIELD_BLOCK_DIRTY_COW;
@@ -227,7 +260,7 @@ bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flag
     }
 
     /* 4. Policy: Unauthorized Shared Write */
-    if ((flags & MAP_SHARED) && (prot & PROT_WRITE) && file) {
+    if (req->shared && (prot & PROT_WRITE) && file) {
         if (!(file->f_mode & FMODE_WRITE)) {
             verdict = SHIELD_BLOCK_SHARED_WRITE;
             atomic64_inc(&g_shield_stats.shared_write_violations);
@@ -242,23 +275,62 @@ decide:
             atomic64_inc(&g_shield_stats.total_blocked);
         }
 
-        pr_warn_ratelimited("[%s] ALERTA DE SEGURIDAD: PID=%d (%s) UID=%u Path=%s Prot=0x%lx Flags=0x%lx Accion=%s [%s]\n",
+        pr_warn_ratelimited("[%s] ALERTA DE SEGURIDAD: PID=%d (%s) UID=%u Origen=%s Path=%s Prot=0x%lx Flags=0x%lx Accion=%s [%s]\n",
                             MODULE_NAME, pid, current->comm, from_kuid(&init_user_ns, uid),
-                            path_str, prot, flags,
-                            verdict == SHIELD_BLOCK_WX ? "BLOQUEO_W^X" :
-                            verdict == SHIELD_BLOCK_SENSITIVE_FILE ? "BLOQUEO_ARCHIVO_SENSIBLE" :
-                            verdict == SHIELD_BLOCK_DIRTY_COW ? "DETECCION_DIRTY_COW" : "BLOQUEO_MAP_SHARED",
+                            req->origin == SHIELD_ORIGIN_MPROTECT ? "mprotect" : "mmap",
+                            path_str, prot, req->flags, verdict_to_log(verdict),
                             enforced ? "BLOQUEADO" : "PERMISIVO");
 
-        shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, flags, verdict, enforced);
+        shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, req->flags,
+                         verdict, req->origin, enforced);
         return enforced;
     }
 
     atomic64_inc(&g_shield_stats.total_allowed);
 
     if (g_shield_config.audit_all) {
-        shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, flags, SHIELD_ACTION_ALLOW, 0);
+        shield_audit_log(pid, tgid, uid, current->comm, path_str, prot, req->flags,
+                         SHIELD_ACTION_ALLOW, req->origin, 0);
     }
 
     return false;
+}
+
+/*
+ * Evaluates policy for file_mmap (security_mmap_file).
+ * Intercepts at the LSM layer before any VMA allocation or Page Cache access.
+ * Anonymous mappings arrive here too, with file == NULL.
+ */
+bool shield_check_mmap(struct file *file, unsigned long prot, unsigned long flags)
+{
+    unsigned long type = flags & MAP_TYPE;
+    struct shield_request req = {
+        .file   = file,
+        .prot   = prot,
+        .flags  = flags,
+        .shared = (type == MAP_SHARED || type == MAP_SHARED_VALIDATE),
+        .origin = SHIELD_ORIGIN_MMAP,
+    };
+
+    return shield_evaluate(&req);
+}
+
+/*
+ * Evaluates policy for file_mprotect (security_file_mprotect).
+ * Called for each VMA whose permissions change, after the kernel checked
+ * VM_MAY* bits. "prot" already includes PROT_EXEC added by READ_IMPLIES_EXEC.
+ */
+bool shield_check_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
+                           unsigned long prot)
+{
+    bool shared = !!(vma->vm_flags & VM_SHARED);
+    struct shield_request req = {
+        .file   = vma->vm_file,
+        .prot   = prot,
+        .flags  = shared ? MAP_SHARED : MAP_PRIVATE,
+        .shared = shared,
+        .origin = SHIELD_ORIGIN_MPROTECT,
+    };
+
+    return shield_evaluate(&req);
 }

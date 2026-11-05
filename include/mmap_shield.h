@@ -33,6 +33,12 @@ typedef enum {
     SHIELD_MODE_ENFORCING  = 1   /* Actively block violations returning error codes */
 } shield_mode_t;
 
+/* Interception point that produced an event */
+typedef enum {
+    SHIELD_ORIGIN_MMAP = 0,      /* security_mmap_file: new mapping */
+    SHIELD_ORIGIN_MPROTECT,      /* security_file_mprotect: permission change on an existing VMA */
+} shield_origin_t;
+
 /* Audit log event recorded in the circular ring buffer */
 struct shield_audit_event {
     u64 timestamp_sec;
@@ -44,12 +50,14 @@ struct shield_audit_event {
     unsigned long prot;
     unsigned long flags;
     shield_action_t action;
+    shield_origin_t origin;
     int enforced;                /* 1 if blocked, 0 if permissive warning */
 };
 
 /* Global telemetry counters (thread-safe atomic counters) */
 struct shield_stats {
     atomic64_t total_intercepted;
+    atomic64_t mprotect_intercepted;
     atomic64_t total_allowed;
     atomic64_t total_blocked;
     atomic64_t wx_violations;
@@ -75,7 +83,7 @@ extern struct shield_stats  g_shield_stats;
 void shield_audit_init(void);
 void shield_audit_log(pid_t pid, pid_t tgid, kuid_t uid, const char *comm,
                       const char *path, unsigned long prot, unsigned long flags,
-                      shield_action_t action, int enforced);
+                      shield_action_t action, shield_origin_t origin, int enforced);
 size_t shield_audit_copy_entries(struct shield_audit_event *dest, size_t max_count);
 
 /* Forward declarations for submodule initializers/cleanups */

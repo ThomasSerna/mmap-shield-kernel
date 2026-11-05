@@ -54,6 +54,7 @@ static int shield_proc_show(struct seq_file *m, void *v)
     /* Telemetry statistics */
     seq_puts(m, "--- Metricas y Telemetria en Tiempo Real ---\n");
     seq_printf(m, "  Total llamadas interceptadas:     %lld\n", atomic64_read(&g_shield_stats.total_intercepted));
+    seq_printf(m, "    De ellas, cambios mprotect:     %lld\n", atomic64_read(&g_shield_stats.mprotect_intercepted));
     seq_printf(m, "  Mapeos permitidos:                %lld\n", atomic64_read(&g_shield_stats.total_allowed));
     seq_printf(m, "  Mapeos bloqueados:                %lld\n", atomic64_read(&g_shield_stats.total_blocked));
     seq_printf(m, "  Violaciones W^X prevenidas:       %lld\n", atomic64_read(&g_shield_stats.wx_violations));
@@ -68,21 +69,22 @@ static int shield_proc_show(struct seq_file *m, void *v)
 
     /* Audit ring buffer log */
     seq_puts(m, "--- Registro Circular de Auditoria de Seguridad (Ultimos Eventos) ---\n");
-    seq_printf(m, "%-12s %-6s %-6s %-6s %-16s %-15s %-4s %-6s %-6s %s\n",
-               "TIMESTAMP", "PID", "TGID", "UID", "COMANDO", "VERDICTO", "ENF", "PROT", "FLAGS", "RUTA");
-    seq_puts(m, "----------------------------------------------------------------------------------------------------------------\n");
+    seq_printf(m, "%-12s %-6s %-6s %-6s %-16s %-8s %-16s %-4s %-6s %-6s %s\n",
+               "TIMESTAMP", "PID", "TGID", "UID", "COMANDO", "ORIGEN", "VERDICTO", "ENF", "PROT", "FLAGS", "RUTA");
+    seq_puts(m, "--------------------------------------------------------------------------------------------------------------------------\n");
 
     events = kmalloc_array(MMAP_SHIELD_AUDIT_SIZE, sizeof(struct shield_audit_event), GFP_KERNEL);
     if (events) {
         count = shield_audit_copy_entries(events, MMAP_SHIELD_AUDIT_SIZE);
         for (i = 0; i < count; i++) {
             struct shield_audit_event *ev = &events[i];
-            seq_printf(m, "[%10llu] %-6d %-6d %-6u %-16s %-15s %-4s 0x%04lx 0x%04lx %s\n",
+            seq_printf(m, "[%10llu] %-6d %-6d %-6u %-16s %-8s %-16s %-4s 0x%04lx 0x%04lx %s\n",
                        ev->timestamp_sec,
                        ev->pid,
                        ev->tgid,
                        from_kuid(&init_user_ns, ev->uid),
                        ev->comm,
+                       ev->origin == SHIELD_ORIGIN_MPROTECT ? "MPROTECT" : "MMAP",
                        action_to_str(ev->action),
                        ev->enforced ? "SI" : "NO",
                        ev->prot,
@@ -171,6 +173,7 @@ static ssize_t shield_proc_write(struct file *file, const char __user *ubuf,
         ret = shield_del_protected_path(cmd + 9);
     } else if (strcmp(cmd, "reset_stats") == 0) {
         atomic64_set(&g_shield_stats.total_intercepted, 0);
+        atomic64_set(&g_shield_stats.mprotect_intercepted, 0);
         atomic64_set(&g_shield_stats.total_allowed, 0);
         atomic64_set(&g_shield_stats.total_blocked, 0);
         atomic64_set(&g_shield_stats.wx_violations, 0);
